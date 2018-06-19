@@ -2,9 +2,9 @@
 # by Brian Fraser
 
 # Edit this file to compile extra C files into their own programs.
-TARGET= wave_player
+TARGET = wave_player
 
-SOURCES= wave_player.c
+SOURCES = src/*.c
 
 
 PUBDIR = $(HOME)/cmpt433/public/myApps
@@ -13,7 +13,7 @@ CROSS_TOOL = arm-linux-gnueabihf-
 CC_CPP = $(CROSS_TOOL)g++
 CC_C = $(CROSS_TOOL)gcc
 
-CFLAGS = -Wall -g -std=c99 -D _POSIX_C_SOURCE=200809L -Werror
+CFLAGS = -Wall -g -std=c99 -D _POSIX_C_SOURCE=200809L -D _GNU_SOURCE -Werror
 
 
 # Asound process:
@@ -31,13 +31,18 @@ LFLAGS = -L$(HOME)/cmpt433/public/asound_lib_BBB
 
 
 
-all: wav
-	$(CC_C) $(CFLAGS) $(SOURCES) -o $(OUTDIR)/$(TARGET)  $(LFLAGS) -lpthread -lasound
+all: wav player
 
 # Copy wave files to the shared folder
 wav:
 	mkdir -p $(PUBDIR)/wave-files/
 	cp wave-files/* $(PUBDIR)/wave-files/ 
 
+player:
+	mkdir -p bin
+	$(CC_C) $(CFLAGS) -I inc -o bin/$(TARGET) $(SOURCES) $(LFLAGS) -lpthread -lasound
+	cp bin/$(TARGET) $(HOME)/cmpt433/public/myApps
+
 clean:
+	rm -rf bin
 	rm -f $(OUTDIR)/$(TARGET)
