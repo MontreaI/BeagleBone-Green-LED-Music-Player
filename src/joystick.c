@@ -46,7 +46,7 @@ static void* Joystick_thread(void* arg)
             currentVolume += 5;
             currentVolume = (currentVolume > MAX_VOLUME) ? MAX_VOLUME : currentVolume;
             currentVolume = (currentVolume < MIN_VOLUME) ? MIN_VOLUME : currentVolume;
-            Sound_setVolume(currentVolume);
+            Audio_setVolume(currentVolume);
         }
             
         else if (Joystick_isPressed(DOWN))
@@ -54,7 +54,7 @@ static void* Joystick_thread(void* arg)
             currentVolume -= 5;
             currentVolume = (currentVolume > MAX_VOLUME) ? MAX_VOLUME : currentVolume;
             currentVolume = (currentVolume < MIN_VOLUME) ? MIN_VOLUME : currentVolume;
-            Sound_setVolume(currentVolume);
+            Audio_setVolume(currentVolume);
         }
 
         else if (Joystick_isPressed(RIGHT))
