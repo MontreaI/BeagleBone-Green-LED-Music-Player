@@ -1,9 +1,8 @@
-// Incomplete implementation of an audio mixer. Search for "REVISIT" to find things
-// which are left as incomplete.
-// Note: Generates low latency audio on BeagleBone Black; higher latency found on host.
+
 #include <alsa/asoundlib.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h> // memset,
 #include <pthread.h>
@@ -11,20 +10,22 @@
 #include <alloca.h> // needed for mixer
 #include <time.h>
 
+#include "joystick.h"
 #include "audio.h"
 
+// Private functions forward declarations
+static void fillPlaybackBuffer(short *playbackBuffer, int size);
+static void* playbackThread(void* arg);
 
 static snd_pcm_t *handle;
 
 #define DEFAULT_VOLUME 80
 
-#define SAMPLE_RATE 44100
-#define NUM_CHANNELS 1
 #define SAMPLE_SIZE (sizeof(short)) 			// bytes per sample
 // Sample size note: This works for mono files because each sample ("frame') is 1 value.
 // If using stereo files then a frame would be two samples.
 
-
+static unsigned long periodSize = 0; //number of frames per buffer
 static unsigned long playbackBufferSize = 0;
 static short *playbackBuffer = NULL;
 static long long loopCount = 0;
@@ -46,8 +47,11 @@ static playbackSound_t soundBites[MAX_SOUND_BITES];
 // Playback threading
 void* playbackThread(void* arg);
 static _Bool stop = false;
+static _Bool paused = false;
 static pthread_t playbackThreadId;
 static pthread_mutex_t audioMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t pauseCond = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
 
 static int volume = 0;
 
@@ -74,9 +78,13 @@ int main(void)
 	// Play Audio
 	Audio_queueSound(&sampleFile);
 
-	// Cleanup, letting the music in buffer play out (drain), then close and free.
+	// Wait until stop
+	pthread_mutex_lock(&audioMutex);
+	pthread_cond_wait(&stopCond, &audioMutex);
+	pthread_mutex_unlock(&audioMutex);
 
-	free(sampleFile.pData);
+
+	// Cleanup, letting the music in buffer play out (drain), then close and free.
 	Audio_cleanup();
 	Joystick_stopPolling();
 
@@ -123,7 +131,8 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 	// the hardware's playback buffers for efficient data transfers.
 	// ..get info on the hardware buffers:
  	unsigned long unusedBufferSize = 0;
-	snd_pcm_get_params(handle, &unusedBufferSize, &playbackBufferSize);
+	snd_pcm_get_params(handle, &unusedBufferSize, &periodSize);
+	playbackBufferSize = periodSize *2;
 	// ..allocate playback buffer:
 	playbackBuffer = malloc(playbackBufferSize * sizeof(*playbackBuffer));
 
@@ -240,6 +249,9 @@ void Audio_cleanup(void)
 
 	// Stop the PCM generation thread
 	stop = true;
+	if (paused) {
+		Audio_togglePlayback();
+	}
 	pthread_join(playbackThreadId, NULL);
 
 	// Shutdown the PCM output, allowing any pending sound to play out (drain)
@@ -301,6 +313,12 @@ void Audio_setVolume(int newVolume)
     snd_mixer_close(handle);
 }
 
+void Audio_togglePlayback() {
+	paused = !paused;
+	if(!paused) {
+		pthread_cond_signal(&pauseCond);
+	}
+}
 
 // Fill the playbackBuffer array with new PCM values to output.
 //    playbackBuffer: buffer to fill with new PCM data from sound bites.
@@ -331,6 +349,7 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 			pCurrBite->location += size;
 			if (sampleDone) {
 				pCurrBite->pSound = NULL;
+				stop = true;
 			}
 		}
 	}
@@ -347,18 +366,23 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 	free(sumHolder);
 }
 
-void* playbackThread(void* arg)
+static void* playbackThread(void* arg)
 {
 //	const struct timespec sleepTime = {.tv_nsec = 0, .tv_sec = 15};
 //	nanosleep(&sleepTime, NULL); // give time for sound bites to be queued
 	while (!stop) {
+		if (paused) {
+			pthread_mutex_lock(&audioMutex);
+			pthread_cond_wait(&pauseCond, &audioMutex);
+			pthread_mutex_unlock(&audioMutex);
+		}
 		// Generate next block of audio
 		fillPlaybackBuffer(playbackBuffer, playbackBufferSize);
 		loopCount++;
 		//printf("loopcount = %lld\n", loopCount);
 		// Output the audio
 		snd_pcm_sframes_t frames = snd_pcm_writei(handle,
-				playbackBuffer, playbackBufferSize);
+				playbackBuffer, periodSize);
 
 		// Check for (and handle) possible error conditions on output
 		if (frames < 0) {
@@ -370,7 +394,7 @@ void* playbackThread(void* arg)
 					frames);
 			exit(EXIT_FAILURE);
 		}
-		if (frames > 0 && frames < playbackBufferSize) {
+		if (frames > 0 && frames < periodSize) {
 			printf("Short write (expected %li, wrote %li)\n",
 					playbackBufferSize, frames);
 		}

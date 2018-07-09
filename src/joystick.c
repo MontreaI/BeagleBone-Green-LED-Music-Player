@@ -5,19 +5,20 @@
 #include <pthread.h>
 
 #include "joystick.h"
-#include "sound.h"
-#include "wave_player.h"
+#include "audio.h"
 
 #define JOYSTICK_EXPORT "/sys/class/gpio/export"
 #define UP 26
 #define RIGHT 47
 #define DOWN 46
 #define LEFT 65
+#define IN 27
 #define BUFFSIZE 1024
 #define MAX_VOLUME 100
 #define MIN_VOLUME 0
 
 static pthread_t joystickThreadId;
+static _Bool stop = false;
 
 // Private functions forward declarations
 static void* Joystick_thread(void* arg);
@@ -33,6 +34,7 @@ void Joystick_startPolling()
 
 void Joystick_stopPolling()
 {
+	stop = true;
     pthread_join(joystickThreadId, NULL);
 }
 
@@ -42,8 +44,9 @@ static void* Joystick_thread(void* arg)
 
     while (!stop)
     {
+
         if (Joystick_isPressed(UP)){
-            currentVolume += 5;
+            int currentVolume = Audio_getVolume() + 5;
             currentVolume = (currentVolume > MAX_VOLUME) ? MAX_VOLUME : currentVolume;
             currentVolume = (currentVolume < MIN_VOLUME) ? MIN_VOLUME : currentVolume;
             Audio_setVolume(currentVolume);
@@ -51,7 +54,7 @@ static void* Joystick_thread(void* arg)
             
         else if (Joystick_isPressed(DOWN))
         {
-            currentVolume -= 5;
+        	int currentVolume = Audio_getVolume() - 5;
             currentVolume = (currentVolume > MAX_VOLUME) ? MAX_VOLUME : currentVolume;
             currentVolume = (currentVolume < MIN_VOLUME) ? MIN_VOLUME : currentVolume;
             Audio_setVolume(currentVolume);
@@ -67,6 +70,10 @@ static void* Joystick_thread(void* arg)
             // previous track
         }
 
+        else if (Joystick_isPressed(IN))
+        {
+        	Audio_togglePlayback();
+        }
         nanosleep((const struct timespec[]){{0, 100000000}}, NULL);
     }
     return NULL;
@@ -78,6 +85,7 @@ static void Joystick_init()
     writeFile(JOYSTICK_EXPORT, RIGHT);
     writeFile(JOYSTICK_EXPORT, DOWN);
     writeFile(JOYSTICK_EXPORT, LEFT);
+    writeFile(JOYSTICK_EXPORT, IN);
 }
 
 static void writeFile(char *filePath, int value)
