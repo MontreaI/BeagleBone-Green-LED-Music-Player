@@ -1,10 +1,11 @@
 
 #include <alsa/asoundlib.h>
+#include <dirent.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h> // memset,
+#include <string.h> // memset, strlen, strcpy
 #include <pthread.h>
 #include <limits.h>
 #include <alloca.h> // needed for mixer
@@ -14,6 +15,7 @@
 #include "audio.h"
 
 // Private functions forward declarations
+static char** getFilenames(char *dirName, int* pFilenameCount);
 static void fillPlaybackBuffer(short *playbackBuffer, int size);
 static void* playbackThread(void* arg);
 
@@ -43,6 +45,8 @@ typedef struct {
 	int location;
 } playbackSound_t;
 static playbackSound_t soundBites[MAX_SOUND_BITES];
+static char** filenames = NULL;;
+static int filenameCount = 0;
 
 // Playback threading
 void* playbackThread(void* arg);
@@ -61,14 +65,21 @@ static int volume = 0;
 // folder along with the executable to ensure both are present.
 //#define SOURCE_FILE "wave-files/100060__menegass__gui-drum-splash-hard.wav"
 #define SOURCE_FILE "wave-files/a2002011001-e02.wav"
-
+#define WAVE_FILE_DIR "wave-files/"
 
 int main(void)
 {
 	printf("Beginning play-back of %s\n", SOURCE_FILE);// Load wave file we want to play:
 	wavedata_t sampleFile;
-	Audio_readWaveFileIntoMemory(SOURCE_FILE, &sampleFile);
+	//Audio_readWaveFileIntoMemory(SOURCE_FILE, &sampleFile);
 
+	// Get filenames
+	filenames = getFilenames(WAVE_FILE_DIR, &filenameCount);
+	char filenameBuffer[100];
+	strcpy(filenameBuffer, WAVE_FILE_DIR);
+	strcpy(filenameBuffer + strlen(WAVE_FILE_DIR), filenames[11]);
+
+	Audio_readWaveFileIntoMemory(filenameBuffer, &sampleFile);
 	stop = false;
 	Joystick_startPolling();
 
@@ -105,8 +116,6 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 	}
 	pthread_mutex_unlock(&audioMutex);
 
-
-
 	// Open the PCM output
 	int err = snd_pcm_open(&handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
 	if (err < 0) {
@@ -132,7 +141,7 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 	// ..get info on the hardware buffers:
  	unsigned long unusedBufferSize = 0;
 	snd_pcm_get_params(handle, &unusedBufferSize, &periodSize);
-	playbackBufferSize = periodSize *2;
+	playbackBufferSize = periodSize * numChannels;
 	// ..allocate playback buffer:
 	playbackBuffer = malloc(playbackBufferSize * sizeof(*playbackBuffer));
 
@@ -140,6 +149,45 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 	pthread_create(&playbackThreadId, NULL, playbackThread, NULL);
 }
 
+// Allocates and returns array containing names of files in dirName
+static char** getFilenames(char *dirName, int* pFilenameCount)
+{
+	DIR *pDir;
+	struct dirent *currEntity;
+	pDir = opendir(dirName);
+
+	char **dest = NULL;
+	if (pDir) {
+		// count number of regular files
+		int count = 0;
+		currEntity = readdir(pDir);
+		while (currEntity) {
+			if (currEntity->d_type == DT_REG) {
+				count++;
+			}
+			currEntity = readdir(pDir);
+		}
+		dest = malloc(count * sizeof(char*));
+		memset(dest, 0, count * sizeof(char*));
+		*pFilenameCount = count;
+		rewinddir(pDir);
+		// get filenames of regular files
+		int i = 0;
+		currEntity = readdir(pDir);
+		while (currEntity) {
+			if (currEntity->d_type == DT_REG) {
+				dest[i] = malloc(strlen(currEntity->d_name) + 1);
+				if (dest[i]) {
+					strcpy(dest[i], currEntity->d_name);
+				}
+				i++;
+			}
+			currEntity = readdir(pDir);
+		}
+		closedir(pDir);
+	}
+	return dest;
+}
 
 // Read in the file to dynamically allocated memory.
 // !! Client code must free memory in wavedata_t !!
@@ -151,6 +199,7 @@ void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 	// is correct format.
 	const int DATA_OFFSET_INTO_WAVE = 44;
 
+	const int WAVE_FIELD_OFFSET = 8;
 	const int NUM_CHANNELS_OFFSET = 22;
 	const int SAMPLE_RATE_OFFSET = 24;
 	const int SAMPLE_SIZE_OFFSET = 34;
@@ -162,6 +211,17 @@ void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 	if (file == NULL) {
 		fprintf(stderr, "ERROR: Unable to open file %s.\n", fileName);
 		exit(EXIT_FAILURE);
+	}
+
+	// Check if fileName is a wave file
+	const int fieldSize = 4;
+	char fieldBuff[fieldSize+1];
+	const char waveHeader[] = "WAVE";
+	fseek(file, WAVE_FIELD_OFFSET, SEEK_SET);
+	fread(fieldBuff, fieldSize, sizeof(char), file);
+	fieldBuff[fieldSize] = '\0';
+	if (strcmp(fieldBuff, waveHeader)) {
+		return;
 	}
 
 	// Get file size
@@ -266,6 +326,10 @@ void Audio_cleanup(void)
 	for (int i = 0; i < MAX_SOUND_BITES; i++) {
 		Audio_freeWaveFileData(soundBites[MAX_SOUND_BITES].pSound);
 	}
+	for (int i = 0; i < filenameCount; i++) {
+		free(filenames[i]);
+	}
+	free(filenames);
 
 	printf("Done stopping audio...\n");
 	fflush(stdout);
