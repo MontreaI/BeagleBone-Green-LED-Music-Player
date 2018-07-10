@@ -1,9 +1,7 @@
 #ifndef JOYSTICK_H
 #define JOYSTICK_H
 
-#include <stdbool.h>
-
-void Joystick_startPolling();
-void Joystick_stopPolling();
+void Joystick_init();
+void Joystick_cleanup();
 
 #endif

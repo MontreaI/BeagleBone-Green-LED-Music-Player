@@ -1,0 +1,719 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <time.h>
+#include "led_matrix.h"
+#include <ctype.h>
+
+/*** GLOBAL VARIABLE ***/
+/* GPIO PATH */
+#define GPIO_PATH "/sys/class/gpio/"
+
+/* GPIO Pins Definition */
+#define RED1_PIN 8 // UPPER
+#define GREEN1_PIN 80
+#define BLUE1_PIN 78
+#define RED2_PIN 76 // LOWER
+#define GREEN2_PIN 79
+#define BLUE2_PIN 74
+#define CLK_PIN 73   // Arrival of each data
+#define LATCH_PIN 75 // End of a row of data
+#define OE_PIN 71    // Transition from one row to another
+#define A_PIN 72     // Row select
+#define B_PIN 77
+#define C_PIN 70
+
+#define S_IWRITE "S_IWUSR"
+
+/* TIMING */
+#define SLIDE_TIME_IN_US 200000000
+#define DELAY_IN_US 5
+#define DELAY_IN_SEC 0
+
+/* LED Screen Values */
+static int screen[32][16];
+#define SCREEN_WIDTH 32
+#define SCREEN_HEIGHT 16
+
+/* FILES HANDLER */
+static int fileDesc_red1;
+static int fileDesc_blue1;
+static int fileDesc_green1;
+static int fileDesc_red2;
+static int fileDesc_blue2;
+static int fileDesc_green2;
+static int fileDesc_clk;
+static int fileDesc_latch;
+static int fileDesc_oe;
+static int fileDesc_a;
+static int fileDesc_b;
+static int fileDesc_c;
+
+/* LED ALPHABET */
+//static int A[7][3] = {{5,9,0}, {1,0,1}, {1,0,1}, {1,1,1}, {1,0,1}, {1,0,1}, {1,0,5}};
+//static int B[7][3] = {{6,7,0}, {1,0,1}, {1,0,1}, {1,1,1}, {1,0,1}, {1,0,1}, {1,0,6}};
+static int A[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}};
+static int B[7][3] = {{1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}};
+static int C[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 1, 0}};
+static int D[7][3] = {{1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}};
+static int E[7][3] = {{1, 1, 1}, {1, 0, 0}, {1, 0, 0}, {1, 1, 0}, {1, 0, 0}, {1, 0, 0}, {1, 1, 1}};
+static int F[7][3] = {{1, 1, 1}, {1, 0, 0}, {1, 0, 0}, {1, 1, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}};
+static int G[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int H[7][3] = {{1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}};
+static int I[7][3] = {{1, 1, 1}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {1, 1, 1}};
+static int J[7][3] = {{0, 1, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int K[7][3] = {{1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}};
+static int L[7][3] = {{1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 1, 1}};
+static int M[7][3] = {{1, 0, 1}, {1, 1, 1}, {1, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}};
+static int N[7][3] = {{1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}};
+static int O[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int P[7][3] = {{1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}};
+static int Q[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}};
+static int R[7][3] = {{1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}, {1, 0, 0}, {1, 1, 0}, {1, 0, 1}};
+static int S[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int T[7][3] = {{1, 1, 1}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}};
+static int U[7][3] = {{1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 1}};
+static int V[7][3] = {{1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int W[7][3] = {{1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 1}, {1, 1, 1}, {1, 0, 1}};
+static int X[7][3] = {{1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}};
+static int Y[7][3] = {{1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}};
+static int Z[7][3] = {{1, 1, 1}, {0, 0, 1}, {0, 0, 1}, {0, 1, 0}, {1, 0, 0}, {1, 0, 0}, {1, 1, 1}};
+
+static int a[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 1, 0}, {0, 0, 1}, {1, 1, 1}, {1, 0, 1}, {1, 1, 1}};
+static int b[7][3] = {{1, 0, 0}, {1, 0, 0}, {1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}};
+static int c[7][3] = {{0, 0, 0}, {0, 0, 0}, {0, 1, 1}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {0, 1, 1}};
+static int d[7][3] = {{0, 0, 1}, {0, 0, 1}, {0, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}};
+static int e[7][3] = {{0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {1, 0, 1}, {1, 1, 1}, {1, 0, 0}, {0, 1, 1}};
+static int f[7][3] = {{0, 0, 1}, {0, 1, 0}, {1, 1, 1}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}};
+static int g[7][3] = {{0, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}, {0, 0, 1}, {1, 1, 0}};
+static int h[7][3] = {{1, 0, 0}, {1, 0, 0}, {1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}};
+static int i[7][3] = {{0, 1, 0}, {0, 0, 0}, {1, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {1, 1, 1}};
+static int j[7][3] = {{0, 1, 0}, {0, 0, 0}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {1, 1, 0}};
+static int k[7][3] = {{1, 0, 0}, {1, 0, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}, {1, 0, 1}, {1, 0, 1}};
+static int l[7][3] = {{1, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {1, 1, 1}};
+static int m[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 1}, {1, 1, 1}, {1, 1, 1}, {1, 0, 1}, {1, 0, 1}};
+static int n[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}};
+static int o[7][3] = {{0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int p[7][3] = {{1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}, {1, 0, 0}, {1, 0, 0}};
+static int q[7][3] = {{0, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}, {0, 0, 1}, {0, 0, 1}};
+static int r[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}};
+static int s[7][3] = {{0, 0, 0}, {0, 0, 0}, {0, 1, 1}, {1, 0, 0}, {1, 1, 1}, {0, 0, 1}, {1, 1, 0}};
+static int t[7][3] = {{0, 0, 0}, {0, 1, 0}, {1, 1, 1}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 0, 1}};
+static int u[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}};
+static int v[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int w[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 1}, {1, 1, 1}, {0, 1, 1}};
+static int x[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}, {1, 0, 1}, {1, 0, 1}};
+static int y[7][3] = {{1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}, {0, 0, 1}, {1, 1, 0}};
+static int z[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {0, 0, 1}, {0, 1, 0}, {1, 0, 0}, {1, 1, 1}};
+
+/* LED SPECIAL CHARACTERS */
+static int tab[7][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+static int colon[7][3] = {{0, 0, 0}, {0, 1, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 0, 0}};
+/* LED NUMBERS */
+static int zero[7][3] = {{0, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}};
+static int one[7][3] = {{0, 1, 0}, {1, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {1, 1, 1}};
+static int two[7][3] = {{0, 1, 0}, {1, 0, 1}, {0, 0, 1}, {0, 1, 0}, {1, 0, 0}, {1, 0, 0}, {1, 1, 1}};
+static int three[7][3] = {{0, 1, 0}, {1, 0, 1}, {0, 0, 1}, {0, 1, 0}, {0, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int four[7][3] = {{0, 0, 1}, {0, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 0, 1}, {0, 0, 1}};
+static int five[7][3] = {{1, 1, 1}, {1, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 0, 1}, {0, 0, 1}, {1, 1, 0}};
+static int six[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 0}, {1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int seven[7][3] = {{1, 1, 1}, {0, 0, 1}, {0, 0, 1}, {0, 1, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}};
+static int eight[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+static int nine[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}, {0, 0, 1}, {1, 0, 1}, {0, 1, 0}};
+
+static int appendedLength = 0;
+static int *uppercaseAlphabet[] = {
+    &A[0][0], &B[0][0], &C[0][0], &D[0][0], &E[0][0], &F[0][0], &G[0][0], &H[0][0], &I[0][0],
+    &J[0][0], &K[0][0], &L[0][0], &M[0][0], &N[0][0], &O[0][0], &P[0][0], &Q[0][0], &R[0][0],
+    &S[0][0], &T[0][0], &U[0][0], &V[0][0], &W[0][0], &X[0][0], &Y[0][0], &Z[0][0]};
+
+static int *lowercaseAlphabet[] = {
+    &a[0][0], &b[0][0], &c[0][0], &d[0][0], &e[0][0], &f[0][0], &g[0][0], &h[0][0], &i[0][0],
+    &j[0][0], &k[0][0], &l[0][0], &m[0][0], &n[0][0], &o[0][0], &p[0][0], &q[0][0], &r[0][0],
+    &s[0][0], &t[0][0], &u[0][0], &v[0][0], &w[0][0], &x[0][0], &y[0][0], &z[0][0]};
+
+static int *numbers[] = {
+    &zero[0][0], &one[0][0], &two[0][0], &three[0][0], &four[0][0], &five[0][0], &six[0][0], 
+    &seven[0][0], &eight[0][0], &nine[0][0]};
+
+static int alphabetRows = 7;
+static int alphabetCols = 3;
+static int titleLength = 0;
+
+static int **ledTrack;
+static int **ledAlbum;
+static int **ledartist;
+static int **ledTrackTime;
+//static int reallocLength;
+/**
+ * exportAndOut
+ * Export a pin and set the direction to output
+ * @params
+ *  int pinNum: the pin number to be exported and set for output
+ */
+static void exportAndOut(int pinNum)
+{
+    // Export the gpio pins
+    FILE *gpioExP = fopen(GPIO_PATH "export", "w");
+    if (gpioExP == NULL)
+    {
+        printf("ERROR: Unable to open export file.\n");
+        exit(-1);
+    }
+    fprintf(gpioExP, "%d", pinNum);
+    fclose(gpioExP);
+
+    // Change the direction into out
+    char fileNameBuffer[1024];
+    sprintf(fileNameBuffer, GPIO_PATH "gpio%d/direction", pinNum);
+
+    FILE *gpioDirP = fopen(fileNameBuffer, "w");
+    fprintf(gpioDirP, "out");
+    fclose(gpioDirP);
+
+    return;
+}
+
+/**
+ * ledMatrix_setupPins
+ * Setup the pins used by the led matrix, by exporting and set the direction to out
+ */
+static void ledMatrix_setupPins(void)
+{
+    // !Upper led
+    exportAndOut(RED1_PIN);
+    fileDesc_red1 = open("/sys/class/gpio/gpio8/value", O_WRONLY, S_IWRITE);
+    exportAndOut(GREEN1_PIN);
+    fileDesc_green1 = open("/sys/class/gpio/gpio80/value", O_WRONLY, S_IWRITE);
+    exportAndOut(BLUE1_PIN);
+    fileDesc_blue1 = open("/sys/class/gpio/gpio78/value", O_WRONLY, S_IWRITE);
+
+    // Lower led
+    exportAndOut(RED2_PIN);
+    fileDesc_red2 = open("/sys/class/gpio/gpio76/value", O_WRONLY, S_IWRITE);
+    exportAndOut(GREEN2_PIN);
+    fileDesc_green2 = open("/sys/class/gpio/gpio79/value", O_WRONLY, S_IWRITE);
+    exportAndOut(BLUE2_PIN);
+    fileDesc_blue2 = open("/sys/class/gpio/gpio74/value", O_WRONLY, S_IWRITE);
+
+    // Timing
+    exportAndOut(CLK_PIN);
+    fileDesc_clk = open("/sys/class/gpio/gpio73/value", O_WRONLY, S_IWRITE);
+    exportAndOut(LATCH_PIN);
+    fileDesc_latch = open("/sys/class/gpio/gpio75/value", O_WRONLY, S_IWRITE);
+    exportAndOut(OE_PIN);
+    fileDesc_oe = open("/sys/class/gpio/gpio71/value", O_WRONLY, S_IWRITE);
+
+    // Row Select
+    exportAndOut(A_PIN);
+    fileDesc_a = open("/sys/class/gpio/gpio72/value", O_WRONLY, S_IWRITE);
+    exportAndOut(B_PIN);
+    fileDesc_b = open("/sys/class/gpio/gpio77/value", O_WRONLY, S_IWRITE);
+    exportAndOut(C_PIN);
+    fileDesc_c = open("/sys/class/gpio/gpio70/value", O_WRONLY, S_IWRITE);
+
+    return;
+}
+
+/** 
+ *  ledMatrix_clock
+ *  Generate the clock pins
+ */
+static void ledMatrix_clock(void)
+{
+    // Bit-bang the clock gpio
+    // Notes: Before program writes, must make sure it's on the 0 index
+    lseek(fileDesc_clk, 0, SEEK_SET);
+    write(fileDesc_clk, "1", 1);
+    lseek(fileDesc_clk, 0, SEEK_SET);
+    write(fileDesc_clk, "0", 1);
+
+    return;
+}
+
+/**
+ *  ledMatrix_latch
+ *  Generate the latch pins
+ */
+static void ledMatrix_latch(void)
+{
+    lseek(fileDesc_latch, 0, SEEK_SET);
+    write(fileDesc_latch, "1", 1);
+    lseek(fileDesc_latch, 0, SEEK_SET);
+    write(fileDesc_latch, "0", 1);
+
+    return;
+}
+
+/**
+ *  ledMatrix_bitsFromInt
+ *  Convert integer passed on into bits and put in array
+ *  @params:
+ *      int * arr: pointer to array to be filled with bits
+ *      int input: integer to be converted to bits
+ */
+static void ledMatrix_bitsFromInt(int *arr, int input)
+{
+    arr[0] = input & 1;
+
+    arr[1] = input & 2;
+    arr[1] = arr[1] >> 1;
+
+    arr[2] = input & 4;
+    arr[2] = arr[2] >> 2;
+
+    return;
+}
+
+/**
+ *  ledMatrix_setRow
+ *  Set LED Matrix row
+ *  @params:
+ *      int rowNum: the rowNumber to be inputted to row pins
+ */
+static void ledMatrix_setRow(int rowNum)
+{
+    // Convert rowNum single bits from int
+    int arr[3] = {0, 0, 0};
+    ledMatrix_bitsFromInt(arr, rowNum);
+
+    // Write on the row pins
+    char a_val[2];
+    sprintf(a_val, "%d", arr[0]);
+    lseek(fileDesc_a, 0, SEEK_SET);
+    write(fileDesc_a, a_val, 1);
+
+    char b_val[2];
+    sprintf(b_val, "%d", arr[1]);
+    lseek(fileDesc_b, 0, SEEK_SET);
+    write(fileDesc_b, b_val, 1);
+
+    char c_val[2];
+    sprintf(c_val, "%d", arr[2]);
+    lseek(fileDesc_c, 0, SEEK_SET);
+    write(fileDesc_c, c_val, 1);
+
+    return;
+}
+
+/**
+ *  ledMatrix_setColourTop
+ *  Set the colour of the top part of the LED
+ *  @params:
+ *      int colour: colour to be set
+ */
+static void ledMatrix_setColourTop(int colour)
+{
+    int arr[3] = {0, 0, 0};
+    ledMatrix_bitsFromInt(arr, colour);
+
+    // Write on the colour pins
+    char red1_val[2];
+    sprintf(red1_val, "%d", arr[0]);
+    lseek(fileDesc_red1, 0, SEEK_SET);
+    write(fileDesc_red1, red1_val, 1);
+
+    char green1_val[2];
+    sprintf(green1_val, "%d", arr[1]);
+    lseek(fileDesc_green1, 0, SEEK_SET);
+    write(fileDesc_green1, green1_val, 1);
+
+    char blue1_val[2];
+    sprintf(blue1_val, "%d", arr[2]);
+    lseek(fileDesc_blue1, 0, SEEK_SET);
+    write(fileDesc_blue1, blue1_val, 1);
+
+    return;
+}
+
+/**
+ *  ledMatrix_setColourBottom
+ *  Set the colour of the bottom part of the LED
+ *  @params:
+ *      int colour: colour to be set
+ */
+static void ledMatrix_setColourBottom(int colour)
+{
+    int arr[3] = {0, 0, 0};
+    ledMatrix_bitsFromInt(arr, colour);
+
+    // Write on the colour pins
+    char red2_val[2];
+    sprintf(red2_val, "%d", arr[0]);
+    lseek(fileDesc_red2, 0, SEEK_SET);
+    write(fileDesc_red2, red2_val, 1);
+
+    char green2_val[2];
+    sprintf(green2_val, "%d", arr[1]);
+    lseek(fileDesc_green2, 0, SEEK_SET);
+    write(fileDesc_green2, green2_val, 1);
+
+    char blue2_val[2];
+    sprintf(blue2_val, "%d", arr[2]);
+    lseek(fileDesc_blue2, 0, SEEK_SET);
+    write(fileDesc_blue2, blue2_val, 1);
+
+    return;
+}
+/**
+ *  ledMatrix_refresh
+ *  Fill the LED Matrix with the respective pixel colour
+ */
+static void ledMatrix_refresh(void)
+{
+    for (int rowNum = 0; rowNum < 8; rowNum++)
+    {
+        lseek(fileDesc_oe, 0, SEEK_SET);
+        write(fileDesc_oe, "1", 1);
+        ledMatrix_setRow(rowNum);
+        for (int colNum = 0; colNum < 32; colNum++)
+        {
+            ledMatrix_setColourTop(screen[colNum][rowNum]);
+            ledMatrix_setColourBottom(screen[colNum][rowNum + 8]);
+            ledMatrix_clock();
+        }
+        ledMatrix_latch();
+        lseek(fileDesc_oe, 0, SEEK_SET);
+        write(fileDesc_oe, "0", 1);
+        struct timespec reqDelay = {DELAY_IN_SEC, DELAY_IN_US};
+        nanosleep(&reqDelay, (struct timespec *)NULL);
+    }
+    return;
+}
+
+/**
+ *  ledMatrix_setPixel
+ *  Set the pixel selected on LED MAtrix with the colour selected
+ *  @params:
+ *      int x: x-axis
+ *      int y: y-axis
+ *      int colour: colour selected
+ */
+
+static void ledMatrix_setPixel(int x, int y, int colour)
+{
+    screen[y][x] = colour;
+
+    return;
+}
+
+void ledMatrix_init()
+{
+    memset(screen, 0, sizeof(screen));
+    // Setup pins
+    ledMatrix_setupPins();
+    ledMatrix_refresh();
+}
+
+int **ledMatrix_extract_string(char *string)
+{
+    int length = titleLength = strlen(string);
+    int **ptr = (int **)malloc(length * sizeof(int *));
+
+    for (int i = 0; i < length; i++)
+    {
+        if (string[i] >= 'A' && string[i] <= 'Z')
+        {
+            ptr[i] = uppercaseAlphabet[string[i] - 'A'];
+        }
+        else if (string[i] >= 'a' && string[i] <= 'z')
+        {
+            ptr[i] = lowercaseAlphabet[string[i] - 'a'];
+        }
+        else if (string[i] == ' ')
+        {
+            ptr[i] = NULL; // space
+        }
+        else if (string[i] == '-')
+        {
+            ptr[i] = &tab[0][0];
+        }
+        else if (string[i] == ':')
+        {
+            ptr[i] = &colon[0][0];
+        }
+        else if (isdigit(string[i]))
+        {
+            ptr[i] = numbers[string[i] - '0'];
+        }
+        else
+        {
+            continue;
+        }
+    }
+
+    return ptr;
+}
+
+int ledMatrix_music_details(char *track, char *album, char *artist)
+{
+
+    ledTrack = ledMatrix_extract_string(track);
+
+    int increment = 0;
+    int increment2 = 0;
+    int isrealloc = 0;
+    int temp = 0;
+    int counter = strlen(track);
+
+    if (strlen(track) * 3 > SCREEN_WIDTH)
+    {
+        for (int j = 0; j < strlen(track); j++)
+        {
+            if (ledTrack[increment] == NULL)
+            {
+                increment2 += 1;
+                increment++;
+                isrealloc = 1;
+                counter -= 1;
+            }
+            if (isrealloc != 1)
+            {
+                for (int rows = 0; rows < alphabetRows; rows++)
+                {
+                    for (int cols = 0; cols < alphabetCols; cols++)
+                    {
+                        //printf("test %d\n", rows*3+cols);
+                        if (ledTrack[increment][rows * 3 + cols] == 1 && cols + increment2 < SCREEN_WIDTH)
+                        {
+                            ledMatrix_setPixel(rows, cols + increment2, 1);
+                            isrealloc = 1;
+                        }
+                    }
+                }
+            }
+
+            if (isrealloc == 1)
+            {
+                ledTrack = (int **)realloc(ledTrack, (strlen(track) + temp + 1) * sizeof(int *));
+                ledTrack[strlen(track) + temp] = &ledTrack[temp][0];
+                if (&ledTrack[temp][0] != NULL)
+                {
+                    counter += 1;
+                }
+                isrealloc = 0;
+                temp += 1;
+            }
+            increment++;
+            increment2 += 4;
+        }
+        appendedLength = counter - 1;
+        return strlen(track) + temp;
+    }
+    else
+    {
+        int offset = (SCREEN_WIDTH - (strlen(track) + (strlen(track) * 3))) / 2;
+        printf("OFFSET%d\n", (SCREEN_WIDTH - (7 + (strlen(track) * 3))) / 2);
+        for (int j = 0; j < strlen(track); j++)
+        {
+            if (ledTrack[increment] == NULL)
+            {
+                increment2 += 1;
+                increment++;
+                continue;
+            }
+            for (int rows = 0; rows < alphabetRows; rows++)
+            {
+                for (int cols = 0; cols < alphabetCols; cols++)
+                {
+                    if (ledTrack[increment][rows * 3 + cols] == 1 && cols + increment2 < SCREEN_WIDTH)
+                    {
+                        ledMatrix_setPixel(rows, offset + cols + increment2, 1);
+                    }
+                }
+            }
+            increment++;
+            increment2 += 4;
+        }
+    }
+
+    ledAlbum = NULL;  //ledMatrix_extract_string(album);
+    ledartist = NULL; //ledMatrix_extract_string(artist);
+    return 0;
+}
+
+static void ledMatrix_slideTrack(int **ledT, int track)
+{
+    int breakout = -1;
+    //int remainder = 0;
+    for (int fuck = 0; fuck < titleLength; fuck++)
+    {
+        if (&ledT[fuck][0] == NULL)
+        {
+            breakout += 1;
+        }
+        else
+        {
+            breakout += 4;
+        }
+    }
+    int remainder = breakout % 32;
+    int multiplier = breakout / 32;
+    int countme = 32 + remainder + (32 - (remainder % 32)) + (remainder / 32);
+    printf("titleLength %d breakout: %d remainder: %d", countme, breakout, breakout % 32);
+    int increment = 0;
+    int increment2 = 0;
+    printf("total length %d\n", track);
+    for (int test = 0; test >= -1 * ((remainder + 32 * multiplier) + 1); test--)
+    {
+        memset(screen, 0, sizeof(screen));
+        increment = 0;
+        increment2 = 0;
+
+        for (int j = 0; j < (track); j++)
+        {
+            if (ledT[increment] == NULL)
+            {
+                increment2 += 1;
+                increment++;
+                continue;
+            }
+            for (int rows = 0; rows < alphabetRows; rows++)
+            {
+                for (int cols = 0; cols < alphabetCols; cols++)
+                {
+                    if (ledT[increment][rows * 3 + cols] == 1 && cols + increment2 + test < SCREEN_WIDTH && test + cols + increment2 >= 0)
+                    {
+                        ledMatrix_setPixel(rows, test + cols + increment2, 1);
+                    }
+                }
+            }
+            increment++;
+            increment2 += 4;
+        }
+        ledMatrix_refresh();
+        struct timespec reqDelay = {DELAY_IN_SEC, 9000000};
+        nanosleep(&reqDelay, (struct timespec *)NULL);
+    }
+    return;
+}
+
+void ledMatrix_track_display(char* track) {
+    time_t endwait;
+    time_t start = time(NULL);
+    time_t seconds = 10; // end loop after this time has elapsed
+    int isOverflow = ledMatrix_music_details(track, NULL, NULL);
+    if (isOverflow != 0)
+    {
+        while (1)
+        {
+            ledMatrix_slideTrack(ledTrack, isOverflow);
+            endwait = start + seconds;
+            while (start < endwait)
+            {
+                ledMatrix_refresh();
+                start = time(NULL);
+            }
+        }
+    }
+    else
+    {
+        while (1)
+        {
+            ledMatrix_refresh();
+        }
+    }
+
+}
+
+void ledMatrix_music_timer(int duration) {
+        
+    time_t endwait;
+    time_t start = time(NULL);
+    time_t second = 1; // end loop after this time has elapsed
+
+    char bufferMinutes[128];
+    char bufferSeconds[128];
+    int seconds = duration%60;
+    int minutes = (duration-seconds)/60;
+
+    sprintf(bufferMinutes, "%d", minutes);
+    sprintf(bufferSeconds, "%d", seconds);
+
+    strcat(bufferMinutes, ":");
+    if(seconds < 10) {
+        strcat(bufferMinutes, "0");
+    }
+    strcat(bufferMinutes, bufferSeconds);
+    strcat(bufferMinutes, "\0");
+
+    //printf("time %s\n", bufferMinutes);
+    int increment = 0;
+    int increment2 = 0;
+
+    ledTrackTime = ledMatrix_extract_string(bufferMinutes);
+
+            int horizontalOffset = (SCREEN_WIDTH - (strlen(bufferMinutes) + (strlen(bufferMinutes) * 3))) / 2;
+            int verticalOffset  = (SCREEN_HEIGHT/2) - alphabetRows/2;
+        //printf("OFFSET%d\n", (SCREEN_WIDTH - (7 + (strlen(track) * 3))) / 2);
+        for (int j = 0; j < strlen(bufferMinutes); j++)
+        {
+            if (ledTrackTime[increment] == NULL)
+            {
+                increment2 += 1;
+                increment++;
+                continue;
+            }
+            for (int rows = 0; rows < alphabetRows; rows++)
+            {
+                for (int cols = 0; cols < alphabetCols; cols++)
+                {
+                    if (ledTrackTime[increment][rows * 3 + cols] == 1 && cols + increment2 < SCREEN_WIDTH)
+                    {
+                        ledMatrix_setPixel(verticalOffset+rows, horizontalOffset + cols + increment2, 1);
+                    }
+                }
+            }
+            increment++;
+            increment2 += 4;
+        }
+        endwait = start + second;
+        while (start < endwait)
+            {
+                ledMatrix_refresh();
+                start = time(NULL);
+            }
+        memset(screen, 0, sizeof(screen));
+        free(ledTrackTime);
+}
+
+void ledMatrix_clean() {
+    memset(screen, 0, sizeof(screen));
+    ledMatrix_refresh();
+    free(ledTrack);
+    free(ledAlbum);
+    free(ledartist);
+    free(ledTrackTime);
+}
+
+void ledMatrix_clear() {
+    memset(screen, 0, sizeof(screen));
+    ledMatrix_refresh();
+}
+/*
+
+int main()
+{
+    
+
+    int music_time = 400;
+    ledMatrix_init();
+    while (1) {
+    ledMatrix_music_timer(music_time);
+            music_time-=1;
+        }
+    
+    //while(1){
+    //ledMatrix_slideLetter(a, sizeof(a)/sizeof(a[0]), sizeof(a[0])/sizeof(a[0][0]));
+    //}
+    //int isLong = ledMatrix_music_details("EXO - LOVE ME RIGHT", NULL, NULL);
+    //int isLong = ledMatrix_music_details("EXO - KO KO BOP", NULL, NULL);
+    //int isLong = ledMatrix_music_details("WINNER - REALLY REALLY MV", NULL, NULL);
+     //int isLong = ledMatrix_music_details("WINNER", NULL, NULL);
+    //ledMatrix_track_display("WINNER - Really Really MV");
+    return 0;
+}
+*/
