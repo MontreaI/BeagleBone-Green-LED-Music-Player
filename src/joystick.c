@@ -5,6 +5,7 @@
 
 #include "joystick.h"
 #include "audio.h"
+#include "led_matrix.h"
 
 #define JOYSTICK_EXPORT "/sys/class/gpio/export"
 #define POLL_SPEED_NS 100000000     // 100ms

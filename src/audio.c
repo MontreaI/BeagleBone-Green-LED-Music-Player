@@ -14,6 +14,7 @@
 #include "audio.h"
 #include "joystick.h"
 #include "pot.h"
+#include "led_matrix.h"
 
 // Private functions forward declarations
 static char** getFilenames(char *dirName, int* pFilenameCount);
