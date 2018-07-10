@@ -11,8 +11,9 @@
 #include <alloca.h> // needed for mixer
 #include <time.h>
 
-#include "joystick.h"
 #include "audio.h"
+#include "joystick.h"
+#include "pot.h"
 
 // Private functions forward declarations
 static char** getFilenames(char *dirName, int* pFilenameCount);
@@ -79,12 +80,13 @@ int main(void)
 	strcpy(filenameBuffer, WAVE_FILE_DIR);
 	strcpy(filenameBuffer + strlen(WAVE_FILE_DIR), filenames[11]);
 
-	Audio_readWaveFileIntoMemory(filenameBuffer, &sampleFile);
+	Audio_readWaveFileIntoMemory(SOURCE_FILE, &sampleFile);
 	stop = false;
-	Joystick_startPolling();
 
 	// Configure Output Device
 	Audio_init(sampleFile.numChannels, sampleFile.sampleRate);
+	Joystick_init();
+	POT_init();
 
 	// Play Audio
 	Audio_queueSound(&sampleFile);
@@ -97,7 +99,7 @@ int main(void)
 
 	// Cleanup, letting the music in buffer play out (drain), then close and free.
 	Audio_cleanup();
-	Joystick_stopPolling();
+	Joystick_cleanup();
 
 	printf("Done!\n");
 	return 0;

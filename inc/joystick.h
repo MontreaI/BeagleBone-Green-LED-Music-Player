@@ -1,7 +1,7 @@
 #ifndef JOYSTICK_H
 #define JOYSTICK_H
 
-void Joystick_startPolling();
-void Joystick_stopPolling();
+void Joystick_init();
+void Joystick_cleanup();
 
 #endif

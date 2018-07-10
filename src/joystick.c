@@ -1,105 +1,109 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <unistd.h>
 #include <pthread.h>
 
 #include "joystick.h"
 #include "audio.h"
 
 #define JOYSTICK_EXPORT "/sys/class/gpio/export"
+#define POLL_SPEED_NS 100000000     // 100ms
 #define UP 26
 #define RIGHT 47
 #define DOWN 46
 #define LEFT 65
 #define IN 27
-#define BUFFSIZE 1024
-#define MAX_VOLUME 100
-#define MIN_VOLUME 0
 
 static pthread_t joystickThreadId;
-static _Bool stop = false;
+static pthread_mutex_t joystickMutex = PTHREAD_MUTEX_INITIALIZER;
+static _Bool stopping = false;
 
 // Private functions forward declarations
 static void* Joystick_thread(void* arg);
-static void Joystick_init();
-static void writeFile(char *filePath, int value);
+static void Joystick_export(char *filePath, int value);
 static _Bool Joystick_isPressed(int direction);
 
-void Joystick_startPolling()
+void Joystick_init()
 {
+    Joystick_export(JOYSTICK_EXPORT, UP);
+    Joystick_export(JOYSTICK_EXPORT, RIGHT);
+    Joystick_export(JOYSTICK_EXPORT, DOWN);
+    Joystick_export(JOYSTICK_EXPORT, LEFT);
+    Joystick_export(JOYSTICK_EXPORT, IN);
+
     if (pthread_create(&joystickThreadId, NULL, Joystick_thread, NULL))
         printf("ERROR cannot create a new Joystick thread");
 }
 
-void Joystick_stopPolling()
+void Joystick_cleanup()
 {
-	stop = true;
+    stopping = true;
     pthread_join(joystickThreadId, NULL);
 }
 
 static void* Joystick_thread(void* arg)
 {
-    Joystick_init();
+    int count = 0, debounce = 5;        // debounce time == 500 ms (5 * 100 (poll speed))
+    _Bool triggered = false;
 
-    while (!stop)
-    {
+    while (!stopping) {
+        if (!triggered) {
+            triggered = true;
 
-        if (Joystick_isPressed(UP)){
-            int currentVolume = Audio_getVolume() + 5;
-            currentVolume = (currentVolume > MAX_VOLUME) ? MAX_VOLUME : currentVolume;
-            currentVolume = (currentVolume < MIN_VOLUME) ? MIN_VOLUME : currentVolume;
-            Audio_setVolume(currentVolume);
-        }
-            
-        else if (Joystick_isPressed(DOWN))
-        {
-        	int currentVolume = Audio_getVolume() - 5;
-            currentVolume = (currentVolume > MAX_VOLUME) ? MAX_VOLUME : currentVolume;
-            currentVolume = (currentVolume < MIN_VOLUME) ? MIN_VOLUME : currentVolume;
-            Audio_setVolume(currentVolume);
+            if (Joystick_isPressed(UP)) {
+                pthread_mutex_lock(&joystickMutex);
+                // next playlist
+                pthread_mutex_unlock(&joystickMutex);
+            }
+                
+            else if (Joystick_isPressed(DOWN)) {
+                pthread_mutex_lock(&joystickMutex);
+                // previous playlist
+                pthread_mutex_unlock(&joystickMutex);
+            }
+
+            else if (Joystick_isPressed(RIGHT)) {
+                pthread_mutex_lock(&joystickMutex);
+                // next track
+                pthread_mutex_unlock(&joystickMutex);
+            }
+                
+            else if (Joystick_isPressed(LEFT)) {
+                pthread_mutex_lock(&joystickMutex);
+                // previous track
+                pthread_mutex_unlock(&joystickMutex);
+            }
+
+            else if (Joystick_isPressed(IN)) {
+                pthread_mutex_lock(&joystickMutex);
+                Audio_togglePlayback();
+                pthread_mutex_unlock(&joystickMutex);
+            }
+
+            else
+                triggered = false;
+
+            count = 0;
         }
 
-        else if (Joystick_isPressed(RIGHT))
-        {
-            // next track
-        }
-            
-        else if (Joystick_isPressed(LEFT))
-        {
-            // previous track
-        }
+        else if (++count == debounce)
+            triggered = false;
 
-        else if (Joystick_isPressed(IN))
-        {
-        	Audio_togglePlayback();
-        }
-        nanosleep((const struct timespec[]){{0, 100000000}}, NULL);
+        nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
     }
     return NULL;
 }
 
-static void Joystick_init()
-{
-    writeFile(JOYSTICK_EXPORT, UP);
-    writeFile(JOYSTICK_EXPORT, RIGHT);
-    writeFile(JOYSTICK_EXPORT, DOWN);
-    writeFile(JOYSTICK_EXPORT, LEFT);
-    writeFile(JOYSTICK_EXPORT, IN);
-}
-
-static void writeFile(char *filePath, int value)
+static void Joystick_export(char *filePath, int value)
 {
     FILE *file = fopen(filePath, "w");
-    if (file == NULL)
-    {
+    if (file == NULL) {
         printf("Error opening file (%s) for write\n", filePath);
         exit(1);
     }
 
     int dataWritten = fprintf(file, "%d", value);
-    if (dataWritten <= 0)
-    {
+    if (dataWritten <= 0) {
         printf("Error writing data\n");
         exit(1);
     }
@@ -114,8 +118,7 @@ static _Bool Joystick_isPressed(int direction)
         printf("ERROR Joystick_isPressed: cannot allocate a temporary string");
 
 	FILE *file = fopen(filePath, "r");
-	if (file == NULL)
-    {
+	if (file == NULL) {
 		printf("Error opening file (%s) for read\n", filePath);
 		exit(-1);
 	}
@@ -129,5 +132,5 @@ static _Bool Joystick_isPressed(int direction)
 
     free(filePath);
     filePath = NULL;
-	return pressedValue;
+    return pressedValue;
 }
