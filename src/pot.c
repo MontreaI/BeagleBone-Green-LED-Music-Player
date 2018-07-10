@@ -30,7 +30,6 @@ const int DATA_PTS[DATA_PTS_SIZE][2] = {
 
 // Private functions forward declarations
 static void* POT_thread(void* arg);
-static int POT_getVolume();
 static int POT_getCurrVolt();
 static void POT_loadCape();
 
@@ -59,7 +58,7 @@ static void* POT_thread(void* arg)
     return NULL;
 }
 
-static int POT_getVolume()
+int POT_getVolume()
 {
     int s = POT_getCurrVolt();
     int a = -1, b = -1, m = -1, n = -1;
