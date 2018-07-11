@@ -1,48 +1,31 @@
-# Makefile for building embedded application.
-# by Brian Fraser
+# Makefile for building embedded music player application.
+# by group123
 
 # Edit this file to compile extra C files into their own programs.
 TARGET = wave_player
 
 SOURCES = src/*.c
 
-
+# DIR
 PUBDIR = $(HOME)/cmpt433/public/myApps
-OUTDIR = $(PUBDIR)
-CROSS_TOOL = arm-linux-gnueabihf-
-CC_CPP = $(CROSS_TOOL)g++
-CC_C = $(CROSS_TOOL)gcc
+PROJECT_DIR = $(PUBDIR)/cmpt433_proj
 
+# FLAGS
+CC_C = arm-linux-gnueabihf-gcc
 CFLAGS = -Wall -g -std=c99 -D _POSIX_C_SOURCE=200809L -D _GNU_SOURCE -Werror
-
-
-# Asound process:
-# get alibsound2 lib on target:
-# 	# apt-get install libasound2
-# Copy target's /usr/lib/arm-linux-gnueabihf/libasound.so.2.0.0 
-#      to host  ~/public/asound_lib_BBB/libasound.so
-# Copy to just base library:
-
 LFLAGS = -L$(HOME)/cmpt433/public/asound_lib_BBB
-
-
-# -pg for supporting gprof profiling.
-#CFLAGS += -pg
-
-
 
 all: wav player
 
 # Copy wave files to the shared folder
 wav:
-	mkdir -p $(PUBDIR)/wave-files/
-	cp wave-files/* $(PUBDIR)/wave-files/ 
+	mkdir -p $(PROJECT_DIR)/wave-files/
+	cp wave-files/* $(PROJECT_DIR)/wave-files/ 
 
+# Compiles music player app to the shared folder
 player:
-	mkdir -p bin
-	$(CC_C) $(CFLAGS) -I inc -o bin/$(TARGET) $(SOURCES) $(LFLAGS) -lpthread -lasound
-	cp bin/$(TARGET) $(HOME)/cmpt433/public/myApps
+	$(CC_C) $(CFLAGS) -I inc -o $(PROJECT_DIR)/$(TARGET) $(SOURCES) $(LFLAGS) -lpthread -lasound
 
+# Deletes PROJECT_DIR
 clean:
-	rm -rf bin
-	rm -f $(OUTDIR)/$(TARGET)
+	rm -rf $(PROJECT_DIR)
