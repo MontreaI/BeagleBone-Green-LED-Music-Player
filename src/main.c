@@ -22,7 +22,7 @@ int main(void)
 	// Play Audio
 	// printf("Beginning play-back of %s\n", SOURCE_FILE);	// Load wave file we want to play:
 	// wavedata_t sampleFile;
-	Song_data_playSong(18);
+	Song_data_playSong(5);
 
 	// wavedata_t sampleFile;
 	// Audio_readWaveFileIntoMemory(songBuffer[18], &sampleFile);

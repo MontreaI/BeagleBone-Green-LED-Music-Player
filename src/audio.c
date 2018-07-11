@@ -329,7 +329,7 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 			pCurrBite->location += size;
 			if (sampleDone) {
 				pCurrBite->pSound = NULL;
-				stop = true;
+				// stop = true;
 			}
 		}
 	}

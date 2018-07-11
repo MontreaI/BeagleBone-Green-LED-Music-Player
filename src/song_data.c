@@ -22,6 +22,12 @@ void Song_data_init(){
 
 	// Obtain list of Songs
 	songBuffer = getFilenames(SONG_DIR, &songBufferSize);
+	
+	// for(size_t i = 0; i < songBufferSize; i++)
+	// {
+	// 	printf("%s\n", songBuffer[i]);
+	// }
+	
 }
 
 // Plays song at index
@@ -104,9 +110,12 @@ static char** getFilenames(char *dirName, int* pFilenameCount){
 					char* songName = (char*) malloc(strlen(SONG_DIR) + strlen(currEntity->d_name) + 1);
 					strcpy(songName, SONG_DIR);
 					strcat(songName, currEntity->d_name);
-					strcpy(dest[i], songName);
+					
+					if (strcmp(&songName[strlen(songName)-3], "wav") == 0) {
+						strcpy(dest[i], songName);
+						i++;
+					}			
 				}
-				i++;
 			}
 			currEntity = readdir(pDir);
 		}

@@ -78,8 +78,7 @@ static void* Joystick_thread(void* arg)
                 pthread_mutex_lock(&joystickMutex);
                 printf("LEFT\n");
 
-                // REVISIT
-
+                Song_data_playPrev();
                 pthread_mutex_unlock(&joystickMutex);
             }
             // PLAY/PAUSE
