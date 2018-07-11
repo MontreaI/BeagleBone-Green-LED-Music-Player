@@ -12,6 +12,9 @@ typedef struct {
 
 #define AUDIO_MAX_VOLUME 100
 
+extern pthread_mutex_t audioMutex;
+extern pthread_cond_t stopCond;
+
 // init() must be called before any other functions,
 // cleanup() must be called last to stop playback threads and free memory.
 void Audio_init(unsigned int numChannels, unsigned int sampleRate);

@@ -17,7 +17,7 @@
 #include "led_matrix.h"
 
 // Private functions forward declarations
-static char** getFilenames(char *dirName, int* pFilenameCount);
+// static char** getFilenames(char *dirName, int* pFilenameCount);
 static void fillPlaybackBuffer(short *playbackBuffer, int size);
 static void* playbackThread(void* arg);
 
@@ -55,9 +55,9 @@ void* playbackThread(void* arg);
 static _Bool stop = false;
 static _Bool paused = false;
 static pthread_t playbackThreadId;
-static pthread_mutex_t audioMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t audioMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t pauseCond = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
 
 static int volume = 0;
 
@@ -68,43 +68,6 @@ static int volume = 0;
 //#define SOURCE_FILE "wave-files/100060__menegass__gui-drum-splash-hard.wav"
 #define SOURCE_FILE "wave-files/a2002011001-e02.wav"
 #define WAVE_FILE_DIR "wave-files/"
-
-int main(void)
-{
-	printf("Beginning play-back of %s\n", SOURCE_FILE);// Load wave file we want to play:
-	wavedata_t sampleFile;
-	//Audio_readWaveFileIntoMemory(SOURCE_FILE, &sampleFile);
-
-	// Get filenames
-	filenames = getFilenames(WAVE_FILE_DIR, &filenameCount);
-	char filenameBuffer[100];
-	strcpy(filenameBuffer, WAVE_FILE_DIR);
-	strcpy(filenameBuffer + strlen(WAVE_FILE_DIR), filenames[11]);
-
-	Audio_readWaveFileIntoMemory(SOURCE_FILE, &sampleFile);
-	stop = false;
-
-	// Configure Output Device
-	Audio_init(sampleFile.numChannels, sampleFile.sampleRate);
-	Joystick_init();
-	POT_init();
-
-	// Play Audio
-	Audio_queueSound(&sampleFile);
-
-	// Wait until stop
-	pthread_mutex_lock(&audioMutex);
-	pthread_cond_wait(&stopCond, &audioMutex);
-	pthread_mutex_unlock(&audioMutex);
-
-
-	// Cleanup, letting the music in buffer play out (drain), then close and free.
-	Audio_cleanup();
-	Joystick_cleanup();
-
-	printf("Done!\n");
-	return 0;
-}
 
 void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 {
@@ -152,45 +115,45 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 	pthread_create(&playbackThreadId, NULL, playbackThread, NULL);
 }
 
-// Allocates and returns array containing names of files in dirName
-static char** getFilenames(char *dirName, int* pFilenameCount)
-{
-	DIR *pDir;
-	struct dirent *currEntity;
-	pDir = opendir(dirName);
+// // Allocates and returns array containing names of files in dirName
+// static char** getFilenames(char *dirName, int* pFilenameCount)
+// {
+// 	DIR *pDir;
+// 	struct dirent *currEntity;
+// 	pDir = opendir(dirName);
 
-	char **dest = NULL;
-	if (pDir) {
-		// count number of regular files
-		int count = 0;
-		currEntity = readdir(pDir);
-		while (currEntity) {
-			if (currEntity->d_type == DT_REG) {
-				count++;
-			}
-			currEntity = readdir(pDir);
-		}
-		dest = malloc(count * sizeof(char*));
-		memset(dest, 0, count * sizeof(char*));
-		*pFilenameCount = count;
-		rewinddir(pDir);
-		// get filenames of regular files
-		int i = 0;
-		currEntity = readdir(pDir);
-		while (currEntity) {
-			if (currEntity->d_type == DT_REG) {
-				dest[i] = malloc(strlen(currEntity->d_name) + 1);
-				if (dest[i]) {
-					strcpy(dest[i], currEntity->d_name);
-				}
-				i++;
-			}
-			currEntity = readdir(pDir);
-		}
-		closedir(pDir);
-	}
-	return dest;
-}
+// 	char **dest = NULL;
+// 	if (pDir) {
+// 		// count number of regular files
+// 		int count = 0;
+// 		currEntity = readdir(pDir);
+// 		while (currEntity) {
+// 			if (currEntity->d_type == DT_REG) {
+// 				count++;
+// 			}
+// 			currEntity = readdir(pDir);
+// 		}
+// 		dest = malloc(count * sizeof(char*));
+// 		memset(dest, 0, count * sizeof(char*));
+// 		*pFilenameCount = count;
+// 		rewinddir(pDir);
+// 		// get filenames of regular files
+// 		int i = 0;
+// 		currEntity = readdir(pDir);
+// 		while (currEntity) {
+// 			if (currEntity->d_type == DT_REG) {
+// 				dest[i] = malloc(strlen(currEntity->d_name) + 1);
+// 				if (dest[i]) {
+// 					strcpy(dest[i], currEntity->d_name);
+// 				}
+// 				i++;
+// 			}
+// 			currEntity = readdir(pDir);
+// 		}
+// 		closedir(pDir);
+// 	}
+// 	return dest;
+// }
 
 // Read in the file to dynamically allocated memory.
 // !! Client code must free memory in wavedata_t !!
