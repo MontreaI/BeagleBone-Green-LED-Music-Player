@@ -1,6 +1,4 @@
-
 #include <alsa/asoundlib.h>
-#include <dirent.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -17,7 +15,6 @@
 #include "led_matrix.h"
 
 // Private functions forward declarations
-// static char** getFilenames(char *dirName, int* pFilenameCount);
 static void fillPlaybackBuffer(short *playbackBuffer, int size);
 static void* playbackThread(void* arg);
 
@@ -60,14 +57,6 @@ static pthread_cond_t pauseCond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
 
 static int volume = 0;
-
-// File used for play-back:
-// If cross-compiling, must have this file available, via this relative path,
-// on the target when the application is run. This example's Makefile copies the wave-files/
-// folder along with the executable to ensure both are present.
-//#define SOURCE_FILE "wave-files/100060__menegass__gui-drum-splash-hard.wav"
-#define SOURCE_FILE "wave-files/a2002011001-e02.wav"
-#define WAVE_FILE_DIR "wave-files/"
 
 void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 {
@@ -115,46 +104,6 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 	// Launch playback thread:
 	pthread_create(&playbackThreadId, NULL, playbackThread, NULL);
 }
-
-// // Allocates and returns array containing names of files in dirName
-// static char** getFilenames(char *dirName, int* pFilenameCount)
-// {
-// 	DIR *pDir;
-// 	struct dirent *currEntity;
-// 	pDir = opendir(dirName);
-
-// 	char **dest = NULL;
-// 	if (pDir) {
-// 		// count number of regular files
-// 		int count = 0;
-// 		currEntity = readdir(pDir);
-// 		while (currEntity) {
-// 			if (currEntity->d_type == DT_REG) {
-// 				count++;
-// 			}
-// 			currEntity = readdir(pDir);
-// 		}
-// 		dest = malloc(count * sizeof(char*));
-// 		memset(dest, 0, count * sizeof(char*));
-// 		*pFilenameCount = count;
-// 		rewinddir(pDir);
-// 		// get filenames of regular files
-// 		int i = 0;
-// 		currEntity = readdir(pDir);
-// 		while (currEntity) {
-// 			if (currEntity->d_type == DT_REG) {
-// 				dest[i] = malloc(strlen(currEntity->d_name) + 1);
-// 				if (dest[i]) {
-// 					strcpy(dest[i], currEntity->d_name);
-// 				}
-// 				i++;
-// 			}
-// 			currEntity = readdir(pDir);
-// 		}
-// 		closedir(pDir);
-// 	}
-// 	return dest;
-// }
 
 // Read in the file to dynamically allocated memory.
 // !! Client code must free memory in wavedata_t !!

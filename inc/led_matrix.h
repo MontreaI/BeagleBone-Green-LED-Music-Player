@@ -1,3 +1,5 @@
+// Methods relating to the LED Matrix display
+
 #ifndef LED_MATRIX_H
 #define LED_MATRIX_H
 

@@ -1,3 +1,5 @@
+// Methods relating to potentiometer controls
+
 // Turning Potentiometer adjusts volume
 
 #ifndef POT_H

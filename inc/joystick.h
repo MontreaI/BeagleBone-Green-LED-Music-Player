@@ -1,3 +1,5 @@
+// Methods relating to joystick controls
+
 // Pressing IN will play/pause the music
 
 #ifndef JOYSTICK_H

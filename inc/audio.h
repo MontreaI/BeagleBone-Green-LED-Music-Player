@@ -1,3 +1,5 @@
+// Methods relating to audio playback
+
 // Playback sounds in real time, allowing multiple simultaneous wave files
 // to be mixed together and played without jitter.
 #ifndef AUDIO_MIXER_H

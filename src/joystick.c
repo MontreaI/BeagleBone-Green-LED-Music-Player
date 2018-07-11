@@ -6,6 +6,7 @@
 #include "joystick.h"
 #include "audio.h"
 #include "led_matrix.h"
+#include "song_data.h"
 
 #define JOYSTICK_EXPORT "/sys/class/gpio/export"
 #define POLL_SPEED_NS 100000000     // 100ms
@@ -63,19 +64,25 @@ static void* Joystick_thread(void* arg)
                 // previous playlist
                 pthread_mutex_unlock(&joystickMutex);
             }
-
+            // NEXT SONG
             else if (Joystick_isPressed(RIGHT)) {
                 pthread_mutex_lock(&joystickMutex);
-                // next track
+
+                printf("RIGHT\n");
+                Song_data_playNext();
+
                 pthread_mutex_unlock(&joystickMutex);
             }
-                
+            // PREV SONG 
             else if (Joystick_isPressed(LEFT)) {
                 pthread_mutex_lock(&joystickMutex);
-                // previous track
+                printf("LEFT\n");
+
+                // REVISIT
+
                 pthread_mutex_unlock(&joystickMutex);
             }
-
+            // PLAY/PAUSE
             else if (Joystick_isPressed(IN)) {
                 pthread_mutex_lock(&joystickMutex);
                 Audio_togglePlayback();
