@@ -35,6 +35,7 @@ static void POT_loadCape();
 
 void POT_init()
 {
+    printf("POT_init()\n");
     POT_loadCape();
     
     if (pthread_create(&potThreadId, NULL, POT_thread, NULL))

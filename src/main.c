@@ -5,6 +5,7 @@
 
 #include "audio.h"
 #include "joystick.h"
+#include "pot.h"
 
 #define SOURCE_FILE "wave-files/a2002011001-e02.wav"
 
@@ -23,7 +24,7 @@ int main(void)
 	// Configure Output Device
 	Audio_init(sampleFile.numChannels, sampleFile.sampleRate);
 	Joystick_init();
-	// POT_init();
+	POT_init();
 
 	// Play Audio
 	Audio_queueSound(&sampleFile);
@@ -37,6 +38,7 @@ int main(void)
 	// Cleanup, letting the music in buffer play out (drain), then close and free.
 	Audio_cleanup();
 	Joystick_cleanup();
+	POT_cleanup();
 
 	printf("Done!\n");
 	return 0;

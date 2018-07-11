@@ -26,6 +26,7 @@ static _Bool Joystick_isPressed(int direction);
 
 void Joystick_init()
 {
+    printf("Joystick_init()\n");
     Joystick_export(JOYSTICK_EXPORT, UP);
     Joystick_export(JOYSTICK_EXPORT, RIGHT);
     Joystick_export(JOYSTICK_EXPORT, DOWN);

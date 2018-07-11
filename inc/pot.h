@@ -1,3 +1,5 @@
+// Turning Potentiometer adjusts volume
+
 #ifndef POT_H
 #define POT_H
 

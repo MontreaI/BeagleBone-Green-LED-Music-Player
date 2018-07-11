@@ -71,6 +71,7 @@ static int volume = 0;
 
 void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 {
+	printf("Audio_init()\n");
 	Audio_setVolume(DEFAULT_VOLUME);
 
 	// Initialize the currently active sound-bites being played
