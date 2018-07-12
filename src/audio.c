@@ -13,6 +13,7 @@
 #include "joystick.h"
 #include "pot.h"
 #include "led_matrix.h"
+#include "song_data.h"
 
 // Private functions forward declarations
 static void fillPlaybackBuffer(short *playbackBuffer, int size);
@@ -195,6 +196,8 @@ void Audio_freeWaveFileData(wavedata_t *pSound)
 	}
 }
 
+// Queues pSound into soundBites to be played
+// Starts current song timer
 void Audio_queueSound(wavedata_t *pSound)
 {
 	// Ensure we are only being asked to play "good" sounds:
@@ -202,20 +205,32 @@ void Audio_queueSound(wavedata_t *pSound)
 	assert(pSound->pData);
 
 	pthread_mutex_lock(&audioMutex);
-	int i;
-	_Bool slotFound = false;
-	for (i = 0; i < MAX_SOUND_BITES; i++) {
-		playbackSound_t* pCurrBite = soundBites + i;
-		if (pCurrBite->pSound == NULL) {
-			pCurrBite->pSound = pSound;
-			pCurrBite->location = 0;
-			slotFound = true;
-			break;
-		}
-	}
-	if (!slotFound) {
+
+	// Queue up song
+	soundBites[0].pSound = pSound;
+	soundBites[0].location = 0;
+
+	// Start Current Song Timer
+	Song_data_startTimer();
+
+	// LEGACY CODE: Since MAX_SOUND_BITES is 1, it will always replace soundBites[0]
+	// int i;
+	// _Bool slotFound = false;
+	// for (i = 0; i < MAX_SOUND_BITES; i++) {
+	// 	playbackSound_t* pCurrBite = soundBites + i;
+	// 	if (pCurrBite->pSound == NULL) {
+	// 		pCurrBite->pSound = pSound;
+	// 		pCurrBite->location = 0;
+	// 		slotFound = true;
+	// 		break;
+	// 	}
+	// }
+
+	// DEBUGGING:
+	// if (!slotFound) {
 		//printf("AudioMixer: Error: was unable to queue sound. No free slot found.\n");
-	}
+	// }
+
 	pthread_mutex_unlock(&audioMutex);
 }
 

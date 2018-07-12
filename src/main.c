@@ -9,7 +9,6 @@
 
 #define SAMPLE_RATE 44100
 #define NUM_CHANNELS 2
-#define SOURCE_FILE "wave-files/a2002011001-e02.wav"
 
 int main(void)
 {
@@ -20,13 +19,7 @@ int main(void)
 	Song_data_init();
 
 	// Play Audio
-	// printf("Beginning play-back of %s\n", SOURCE_FILE);	// Load wave file we want to play:
-	// wavedata_t sampleFile;
-	Song_data_playSong(5);
-
-	// wavedata_t sampleFile;
-	// Audio_readWaveFileIntoMemory(songBuffer[18], &sampleFile);
-	// Audio_queueSound(&sampleFile);
+	Song_data_playSong(17);
 
 	// Wait until stop
 	pthread_mutex_lock(&audioMutex);

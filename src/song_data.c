@@ -3,17 +3,22 @@
 #include <string.h>
 #include <dirent.h>
 #include <pthread.h>
+#include <time.h>
 
 #include "audio.h"
 
-#define SONG_DIR "wave-files/"	// Song directory
+#define SONG_DIR "wave-files/"		// Song directory
 
-char** songBuffer;				// Stores list of songs
+// SONG BUFFER
+char** songBuffer;					// Stores list of songs
 static int songBufferSize = 0; 		// Stores num of songs
-static int currentSong = 0;		// Current Song playing
+static int currentSong = 0;			// Current Song playing
 wavedata_t currentSongFile;
 
-// Function Prototypes
+// TIMER
+static time_t startSongTime;;		// Time which song started playing
+
+// FUNCTION PROTOTYPES
 static char** getFilenames(char *dirName, int* pFilenameCount);
 
 // INIT
@@ -23,11 +28,27 @@ void Song_data_init(){
 	// Obtain list of Songs
 	songBuffer = getFilenames(SONG_DIR, &songBufferSize);
 	
+	// DEBUGGING:
 	// for(size_t i = 0; i < songBufferSize; i++)
 	// {
 	// 	printf("%s\n", songBuffer[i]);
 	// }
-	
+}
+
+// Starts timer of how long current song is playing
+void Song_data_startTimer(){
+	time(&startSongTime);
+}
+
+// Returns how long current song has been playing in seconds 
+int Song_data_getTimer(){
+	time_t currentSongTime;
+
+	time(&currentSongTime);
+
+	int seconds = difftime(currentSongTime, startSongTime);
+
+	return seconds;
 }
 
 // Plays song at index
@@ -96,7 +117,6 @@ static char** getFilenames(char *dirName, int* pFilenameCount){
 		}
 		dest = malloc(count * sizeof(char*));
 		memset(dest, 0, count * sizeof(char*));
-		*pFilenameCount = count;
 		rewinddir(pDir);
 
 		// get filenames of regular files
@@ -120,6 +140,9 @@ static char** getFilenames(char *dirName, int* pFilenameCount){
 			currEntity = readdir(pDir);
 		}
 		closedir(pDir);
+
+		// Set pFilenameCount to the number of wave files
+		*pFilenameCount = i;
 	}
 	return dest;
 }
