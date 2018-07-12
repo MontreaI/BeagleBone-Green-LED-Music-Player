@@ -110,18 +110,18 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 // !! Client code must free memory in wavedata_t !!
 void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 {
+	pthread_mutex_lock(&audioMutex);
+
 	assert(pWaveStruct);
 
 	// Wave file has 44 bytes of header data. This code assumes file
 	// is correct format.
 	const int DATA_OFFSET_INTO_WAVE = 44;
-
 	const int WAVE_FIELD_OFFSET = 8;
 	const int NUM_CHANNELS_OFFSET = 22;
 	const int SAMPLE_RATE_OFFSET = 24;
 	const int SAMPLE_SIZE_OFFSET = 34;
 	const int BITS_PER_BYTE = 8;
-
 
 	// Open file
 	FILE *file = fopen(fileName, "r");
@@ -150,7 +150,6 @@ void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 	fread(&numChannels, 1, sizeof(uint16_t), file);
 	pWaveStruct->numChannels = numChannels;
 
-
 	uint32_t sampleRate;
 	fseek(file, SAMPLE_RATE_OFFSET, SEEK_SET);
 	fread(&sampleRate, 1, sizeof(uint32_t), file);
@@ -177,6 +176,7 @@ void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 		exit(EXIT_FAILURE);
 	}
 
+	// REVISIT: I believe this is causing a seg fault when playing a wav file of channels 2 and then switching to a wav file of channels 1
 	// Read data:
 	int samplesRead = fread(pWaveStruct->pData, sampleSize / BITS_PER_BYTE, pWaveStruct->numSamples, file);
 	if (samplesRead != pWaveStruct->numSamples) {
@@ -186,6 +186,8 @@ void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 	}
 
 	fclose(file);
+
+	pthread_mutex_unlock(&audioMutex);
 }
 
 void Audio_freeWaveFileData(wavedata_t *pSound)
@@ -332,8 +334,8 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 
 			// Free soundBite slot if finished playing
 			if (soundBites[0].location >= soundBites[0].pSound->numSamples){
-				printf("Location: %d\n", soundBites[0].location);
-				printf("numSamples: %d\n", soundBites[0].pSound->numSamples);
+				// printf("Location: %d\n", soundBites[0].location);
+				// printf("numSamples: %d\n", soundBites[0].pSound->numSamples);
 				soundBites[0].pSound = NULL;
 				soundBites[0].location = 0;
 				donePlaying = true;
@@ -346,7 +348,7 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 
 	// Inside the lock will crash
 	if(donePlaying){
-		printf("Song done playing\n");
+		// printf("Song done playing\n");
 		_Bool replay = Song_data_getRepeat();
 
 		if(replay){

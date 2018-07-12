@@ -51,8 +51,8 @@ void Song_data_init(){
 		songBuffer[minimum] = temp;
 	}
 
-	// Init Shuffle struct
-	
+	printf("songBufferSize: %d\n", songBufferSize);
+
 	// DEBUGGING:
 	// for(size_t i = 0; i < songBufferSize; i++)
 	// {
@@ -143,7 +143,7 @@ void Song_data_playPrev(){
 		}
 	}
 
-	printf("Playing Prev: %s\n", songBuffer[currentSong]);
+	printf("Playing Prev %d: %s\n", currentSong, songBuffer[currentSong]);
 	Audio_freeWaveFileData(&currentSongFile);
 	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
 	Audio_queueSound(&currentSongFile);
@@ -173,7 +173,7 @@ void Song_data_playNext(){
 		}
 	}
 
-	printf("Playing Next: %s\n", songBuffer[currentSong]);
+	printf("Playing Next %d: %s\n", currentSong, songBuffer[currentSong]);
 	Audio_freeWaveFileData(&currentSongFile);
 	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
 	Audio_queueSound(&currentSongFile);

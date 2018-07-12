@@ -19,7 +19,7 @@ int main(void)
 	Song_data_init();
 
 	// Play Audio
-	Song_data_playSong(1);
+	Song_data_playSong(16);
 
 	// Wait until stop
 	pthread_mutex_lock(&audioMutex);
