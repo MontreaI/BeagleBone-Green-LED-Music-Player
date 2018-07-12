@@ -58,12 +58,13 @@ static pthread_cond_t pauseCond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
 
 static int volume = 0;
+static int numChannels_Global = 2;
 
 void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 {
 	printf("Audio_init()\n");
 	Audio_setVolume(DEFAULT_VOLUME);
-
+	numChannels_Global = numChannels;
 	// Initialize the currently active sound-bites being played
 	// REVISIT:- Implement this. Hint: set the pSound pointer to NULL for each
 	//     sound bite.
@@ -161,9 +162,9 @@ void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 	fread(&sampleSize, 1, sizeof(uint16_t), file);
 
 	// DEBUGGING:
-	// printf("Number of Channels = %d\n", numChannels);
-	// printf("Sample rate = %d\n", sampleRate);
-	// printf("Sample size = %d\n", sampleSize);
+	 printf("Number of Channels = %d\n", numChannels);
+	 printf("Sample rate = %d\n", sampleRate);
+	 printf("Sample size = %d\n", sampleSize);
 
 	fseek(file, DATA_OFFSET_INTO_WAVE, SEEK_SET);
 	pWaveStruct->numSamples = sizeInBytes * BITS_PER_BYTE / sampleSize;
@@ -208,14 +209,40 @@ void Audio_queueSound(wavedata_t *pSound)
 	assert(pSound->pData);
 
 	pthread_mutex_lock(&audioMutex);
-
 	// Queue up song
 	soundBites[0].pSound = pSound;
 	soundBites[0].location = 0;
+	numChannels_Global = pSound->numChannels;
+	// Configure parameters of PCM output
+	int err = snd_pcm_drop(handle);
+	if (err < 0) {
+		printf("PCM Drop error: %s\n", snd_strerror(err));
+		exit(EXIT_FAILURE);
+	}
+	err = snd_pcm_set_params(handle,
+			SND_PCM_FORMAT_S16_LE,
+			SND_PCM_ACCESS_RW_INTERLEAVED,
+			pSound->numChannels,
+			pSound->sampleRate,
+			1,			// Allow software resampling
+			50000);		// 0.05 seconds per buffer
+	if (err < 0) {
+		printf("Playback open error: %s\n", snd_strerror(err));
+		exit(EXIT_FAILURE);
+	}
+	err = snd_pcm_prepare(handle);
+	if (err < 0) {
+		printf("PCM Prepare error: %s\n", snd_strerror(err));
+		exit(EXIT_FAILURE);
+	}
+//	err = snd_pcm_start(handle);
+//	if (err < 0) {
+//		printf("PCM start error: %s\n", snd_strerror(err));
+//		exit(EXIT_FAILURE);
+//	}
 
 	// Start Current Song Timer
 	Song_data_startTimer();
-
 	pthread_mutex_unlock(&audioMutex);
 }
 
@@ -295,6 +322,7 @@ void Audio_setVolume(int newVolume)
 
 void Audio_togglePlayback() {
 	paused = !paused;
+	snd_pcm_pause(handle, paused); // false = 0 = resume, true = 1 = pause
 	if(!paused) {
 		pthread_cond_signal(&pauseCond);
 	}
@@ -370,7 +398,7 @@ static void* playbackThread(void* arg){
 			pthread_mutex_unlock(&audioMutex);
 		}
 		// Generate next block of audio
-		fillPlaybackBuffer(playbackBuffer, playbackBufferSize);
+		fillPlaybackBuffer(playbackBuffer, periodSize * numChannels_Global);
 		loopCount++;
 		//printf("loopcount = %lld\n", loopCount);
 		// Output the audio
