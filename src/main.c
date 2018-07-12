@@ -19,13 +19,12 @@ int main(void)
 	Song_data_init();
 
 	// Play Audio
-	Song_data_playSong(17);
+	Song_data_playSong(1);
 
 	// Wait until stop
 	pthread_mutex_lock(&audioMutex);
 	pthread_cond_wait(&stopCond, &audioMutex);
 	pthread_mutex_unlock(&audioMutex);
-
 
 	// Cleanup, letting the music in buffer play out (drain), then close and free.
 	Audio_cleanup();

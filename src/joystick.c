@@ -51,30 +51,37 @@ static void* Joystick_thread(void* arg){
     while (!stopping) {
         if (!triggered) {
             triggered = true;
-
+            // UP
             if (Joystick_isPressed(UP)) {
                 pthread_mutex_lock(&joystickMutex);
-                // next playlist
-                int time = Song_data_getTimer();
-                printf("Current Song time: %d\n", time);
+                {
+                    printf("UP\n");
+                    Song_data_toggleRepeat();
+                    nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
+                }
                 pthread_mutex_unlock(&joystickMutex);
             }
-                
+            // DOWN
             else if (Joystick_isPressed(DOWN)) {
                 pthread_mutex_lock(&joystickMutex);
-                // previous playlist
+                {
+                    printf("DOWN\n");
+                    Song_data_toggleShuffle();
+                    nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
+                }
                 pthread_mutex_unlock(&joystickMutex);
             }
-            // NEXT SONG
+            // RIGHT
             else if (Joystick_isPressed(RIGHT)) {
                 pthread_mutex_lock(&joystickMutex);
                 {
                     printf("RIGHT\n");
                     Song_data_playNext();
+                    nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
                 }
                 pthread_mutex_unlock(&joystickMutex);
             }
-            // PREV SONG 
+            // LEFT 
             else if (Joystick_isPressed(LEFT)) {
                 pthread_mutex_lock(&joystickMutex);
                 {
@@ -87,7 +94,7 @@ static void* Joystick_thread(void* arg){
                     else{
                         Song_data_replay();
                     }
-
+                    nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
                 }
                 pthread_mutex_unlock(&joystickMutex);
             }

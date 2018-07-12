@@ -4,19 +4,25 @@
 #include <dirent.h>
 #include <pthread.h>
 #include <time.h>
+#include <stdbool.h>
 
 #include "audio.h"
+#include "stack.h"
 
 #define SONG_DIR "wave-files/"		// Song directory
 
+
 // SONG BUFFER
-char** songBuffer;					// Stores list of songs
+static char** songBuffer;			// Song List
 static int songBufferSize = 0; 		// Stores num of songs
 static int currentSong = 0;			// Current Song playing
-wavedata_t currentSongFile;
+static wavedata_t currentSongFile;
 
 // TIMER
-static time_t startSongTime;;		// Time which song started playing
+static time_t startSongTime;		// Time which song started playing
+
+static _Bool repeat = false;		// Repeat
+static _Bool shuffle = false;		// Shuffle
 
 // FUNCTION PROTOTYPES
 static char** getFilenames(char *dirName, int* pFilenameCount);
@@ -27,6 +33,25 @@ void Song_data_init(){
 
 	// Obtain list of Songs
 	songBuffer = getFilenames(SONG_DIR, &songBufferSize);
+
+	// Sort songBuffer
+	// REVISIT: To use more efficient algorithm
+	for (size_t i = 0; i < songBufferSize - 1; i++){
+		int minimum = i;
+		for (size_t j = i + 1; j < songBufferSize; j++){
+			if(strcmp(songBuffer[j], songBuffer[minimum]) < 0){
+				minimum = j;
+			}
+		}
+
+		// Swap (this took me hours trying to do it the other way)
+		char *temp = (char*)malloc(strlen(songBuffer[i]) + 1);
+		strcpy(temp,songBuffer[i]);
+		songBuffer[i] = songBuffer[minimum];
+		songBuffer[minimum] = temp;
+	}
+
+	// Init Shuffle struct
 	
 	// DEBUGGING:
 	// for(size_t i = 0; i < songBufferSize; i++)
@@ -51,32 +76,70 @@ int Song_data_getTimer(){
 	return seconds;
 }
 
+// Return bool of repeat
+_Bool Song_data_getRepeat(){
+	return repeat;
+}
+
+// Return bool of shuffle
+_Bool Song_data_getShuffle(){
+	return shuffle;
+}
+
+// Toggle Repeat
+void Song_data_toggleRepeat(){
+	repeat = !repeat;
+}
+
+// Toggle Shuffle
+void Song_data_toggleShuffle(){
+	shuffle = !shuffle;
+}
+
 // Plays song at index
 void Song_data_playSong(int index){
 	currentSong = index;
-	Audio_readWaveFileIntoMemory(songBuffer[index], &currentSongFile);
-	Audio_queueSound(&currentSongFile);
-}
-
-// Play Previous Song
-void Song_data_playPrev(){
-	if(currentSong <= 0){
-		currentSong = songBufferSize - 1;
-	}
-	else{
-		currentSong--;
-	}
 
 	printf("Playing: %s\n", songBuffer[currentSong]);
-	Audio_freeWaveFileData(&currentSongFile);
 	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
 	Audio_queueSound(&currentSongFile);
 }
 
 // Replay Current Song
 void Song_data_replay(){
-	printf("Playing: %s\n", songBuffer[currentSong]);
+	printf("Replaying: %s\n", songBuffer[currentSong]);
 
+	Audio_freeWaveFileData(&currentSongFile);
+	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
+	Audio_queueSound(&currentSongFile);
+}
+
+// Play Previous Song
+void Song_data_playPrev(){
+	// SHUFFLE ON
+	if (shuffle){
+		// play previous shuffled song
+		currentSong = Stack_pop();
+
+		// empty stack
+		if(currentSong == -1){
+			Song_data_replay();
+		}
+	}
+	// SHUFFLE OFF
+	else{
+		// free shuffle struct
+		Stack_clear();
+
+		if(currentSong <= 0){
+			currentSong = songBufferSize - 1;
+		}
+		else{
+			currentSong--;
+		}
+	}
+
+	printf("Playing Prev: %s\n", songBuffer[currentSong]);
 	Audio_freeWaveFileData(&currentSongFile);
 	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
 	Audio_queueSound(&currentSongFile);
@@ -84,14 +147,29 @@ void Song_data_replay(){
 
 // Play Next Song
 void Song_data_playNext(){
-	if(currentSong >= (songBufferSize - 1)){
-		currentSong = 0;
+
+	// SHUFFLE ON
+	if (shuffle){
+		// generate stack
+		Stack_push(currentSong);
+
+		// play random song
+		currentSong = rand() % songBufferSize;
 	}
+	// SHUFFLE OFF
 	else{
-		currentSong ++;
+		// free shuffle list
+		Stack_clear();
+
+		if(currentSong >= (songBufferSize - 1)){
+			currentSong = 0;
+		}
+		else{
+			currentSong ++;
+		}
 	}
 
-	printf("Playing: %s\n", songBuffer[currentSong]);
+	printf("Playing Next: %s\n", songBuffer[currentSong]);
 	Audio_freeWaveFileData(&currentSongFile);
 	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
 	Audio_queueSound(&currentSongFile);

@@ -161,9 +161,10 @@ void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 	fseek(file, SAMPLE_SIZE_OFFSET, SEEK_SET);
 	fread(&sampleSize, 1, sizeof(uint16_t), file);
 
-	printf("Number of Channels = %d\n", numChannels);
-	printf("Sample rate = %d\n", sampleRate);
-	printf("Sample size = %d\n", sampleSize);
+	// DEBUGGING:
+	// printf("Number of Channels = %d\n", numChannels);
+	// printf("Sample rate = %d\n", sampleRate);
+	// printf("Sample size = %d\n", sampleSize);
 
 	fseek(file, DATA_OFFSET_INTO_WAVE, SEEK_SET);
 	pWaveStruct->numSamples = sizeInBytes * BITS_PER_BYTE / sampleSize;
@@ -212,24 +213,6 @@ void Audio_queueSound(wavedata_t *pSound)
 
 	// Start Current Song Timer
 	Song_data_startTimer();
-
-	// LEGACY CODE: Since MAX_SOUND_BITES is 1, it will always replace soundBites[0]
-	// int i;
-	// _Bool slotFound = false;
-	// for (i = 0; i < MAX_SOUND_BITES; i++) {
-	// 	playbackSound_t* pCurrBite = soundBites + i;
-	// 	if (pCurrBite->pSound == NULL) {
-	// 		pCurrBite->pSound = pSound;
-	// 		pCurrBite->location = 0;
-	// 		slotFound = true;
-	// 		break;
-	// 	}
-	// }
-
-	// DEBUGGING:
-	// if (!slotFound) {
-		//printf("AudioMixer: Error: was unable to queue sound. No free slot found.\n");
-	// }
 
 	pthread_mutex_unlock(&audioMutex);
 }
@@ -320,49 +303,59 @@ void Audio_togglePlayback() {
 //    size: the number of values to store into playbackBuffer
 static void fillPlaybackBuffer(short *playbackBuffer, int size)
 {
-
-	memset(playbackBuffer, 0, sizeof(short) * size);
-	int* sumHolder = malloc(sizeof(int) * size);
-	memset(sumHolder, 0, sizeof(int) * size);
 	pthread_mutex_lock(&audioMutex);
-	for (int i = 0; i < MAX_SOUND_BITES; i++) {
-		playbackSound_t* pCurrBite = soundBites + i;
-		if (pCurrBite->pSound != NULL) {
-			short* pCurrData = pCurrBite->pSound->pData;
-			int sampleCount = pCurrBite->pSound->numSamples;
-			int currLocation = pCurrBite->location;
 
-			int copyAmount = size;
-			_Bool sampleDone = false;
-			if (currLocation + size > sampleCount) {
-				copyAmount = sampleCount - currLocation;
-				sampleDone = true;
+	// Wipe the playbackBuffer to all 0's to clear any previous PCM data.
+	memset(playbackBuffer, 0, sizeof(short) * size);
+
+	_Bool donePlaying = false;
+
+	if (soundBites[0].pSound != NULL){
+		// Looping through playbackBuffer
+		for (int j = 0; j < size; j++){
+
+			// Adding PCM Samples
+			int offset = playbackBuffer[j];
+			offset = soundBites[0].pSound->pData[soundBites[0].location];
+			
+			// Overflow
+			if ( (offset > 0) && (offset > SHRT_MAX) ){
+				offset = SHRT_MAX;
 			}
-			for (int j = 0; j < copyAmount; j++) {
-				sumHolder[j] = sumHolder[j] + (int) pCurrData[currLocation + j];
+			// Underflow
+			else if ( (offset < 0) && (offset < SHRT_MIN) ){
+				offset = SHRT_MIN;
 			}
-			pCurrBite->location += size;
-			if (sampleDone) {
-				pCurrBite->pSound = NULL;
-				// stop = true;
+
+			playbackBuffer[j] = offset;
+			soundBites[0].location++;
+
+			// Free soundBite slot if finished playing
+			if (soundBites[0].location >= soundBites[0].pSound->numSamples){
+				soundBites[0].pSound = NULL;
+				soundBites[0].location = 0;
+				donePlaying = true;
+				break;
 			}
 		}
 	}
+
 	pthread_mutex_unlock(&audioMutex);
-	for (int i = 0; i < size; i++) {
-		if (sumHolder[i] > SHRT_MAX) {
-			playbackBuffer[i] = SHRT_MAX;
-		} else if (sumHolder[i] < SHRT_MIN) {
-			playbackBuffer[i] = SHRT_MIN;
-		} else {
-			playbackBuffer[i] = sumHolder[i];
+
+	// Inside the lock will crash
+	if(donePlaying){
+		_Bool replay = Song_data_getRepeat();
+
+		if(replay){
+			Song_data_replay();
+		}
+		else{
+			Song_data_playNext();
 		}
 	}
-	free(sumHolder);
 }
 
-static void* playbackThread(void* arg)
-{
+static void* playbackThread(void* arg){
 //	const struct timespec sleepTime = {.tv_nsec = 0, .tv_sec = 15};
 //	nanosleep(&sleepTime, NULL); // give time for sound bites to be queued
 	while (!stop) {
