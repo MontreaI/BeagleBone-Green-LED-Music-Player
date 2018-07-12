@@ -119,11 +119,15 @@ void Song_data_playPrev(){
 	// SHUFFLE ON
 	if (shuffle){
 		// play previous shuffled song
-		currentSong = Stack_pop();
+		int poppedSong = Stack_pop();
 
-		// empty stack
-		if(currentSong == -1){
+		// Empty Stack
+		if(poppedSong == -1){
 			Song_data_replay();
+			return;
+		}
+		else{
+			currentSong = poppedSong;
 		}
 	}
 	// SHUFFLE OFF

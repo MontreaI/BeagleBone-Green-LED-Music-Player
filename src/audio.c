@@ -310,7 +310,7 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 
 	_Bool donePlaying = false;
 
-	if (soundBites[0].pSound != NULL){
+	if ( (soundBites[0].pSound != NULL) && (soundBites[0].pSound->numSamples > 0) ){
 		// Looping through playbackBuffer
 		for (int j = 0; j < size; j++){
 
@@ -332,6 +332,8 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 
 			// Free soundBite slot if finished playing
 			if (soundBites[0].location >= soundBites[0].pSound->numSamples){
+				printf("Location: %d\n", soundBites[0].location);
+				printf("numSamples: %d\n", soundBites[0].pSound->numSamples);
 				soundBites[0].pSound = NULL;
 				soundBites[0].location = 0;
 				donePlaying = true;
@@ -344,6 +346,7 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 
 	// Inside the lock will crash
 	if(donePlaying){
+		printf("Song done playing\n");
 		_Bool replay = Song_data_getRepeat();
 
 		if(replay){

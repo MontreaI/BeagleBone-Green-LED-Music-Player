@@ -37,5 +37,5 @@ int Stack_pop(){
 }
 
 void Stack_clear(){
-	memset(shuffleHistory.stack, 0, MAX_STACK_SIZE * sizeof(int));
+	shuffleHistory.top = -1;
 }
