@@ -16,7 +16,7 @@
 #include "song_data.h"
 
 // Private functions forward declarations
-static void fillPlaybackBuffer(short *playbackBuffer, int size);
+static _Bool fillPlaybackBuffer(short *playbackBuffer, int size);
 static void* playbackThread(void* arg);
 
 static snd_pcm_t *handle;
@@ -56,6 +56,7 @@ static pthread_t playbackThreadId;
 pthread_mutex_t audioMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t pauseCond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t pcmHandleMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int volume = 0;
 static int numChannels_Global = 2;
@@ -74,6 +75,7 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 	}
 	pthread_mutex_unlock(&audioMutex);
 
+	pthread_mutex_lock(&pcmHandleMutex);
 	// Open the PCM output
 	int err = snd_pcm_open(&handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
 	if (err < 0) {
@@ -93,6 +95,7 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 		printf("Playback open error: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
 	}
+	pthread_mutex_unlock(&pcmHandleMutex);
 
 	// Allocate this software's playback buffer to be the same size as the
 	// the hardware's playback buffers for efficient data transfers.
@@ -193,11 +196,14 @@ void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 
 void Audio_freeWaveFileData(wavedata_t *pSound)
 {
+	pthread_mutex_lock(&audioMutex);
 	pSound->numSamples = 0;
 	if (!(pSound->pData)) {
 		free(pSound->pData);
 		pSound->pData = NULL;
 	}
+
+	pthread_mutex_unlock(&audioMutex);
 }
 
 // Queues pSound into soundBites to be played
@@ -205,8 +211,9 @@ void Audio_freeWaveFileData(wavedata_t *pSound)
 void Audio_queueSound(wavedata_t *pSound)
 {
 	// Ensure we are only being asked to play "good" sounds:
-	assert(pSound->numSamples > 0);
-	assert(pSound->pData);
+	if(pSound->numSamples <= 0 || !(pSound->pData)) {
+		return;
+	}
 
 	pthread_mutex_lock(&audioMutex);
 	// Queue up song
@@ -214,6 +221,7 @@ void Audio_queueSound(wavedata_t *pSound)
 	soundBites[0].location = 0;
 	numChannels_Global = pSound->numChannels;
 	// Configure parameters of PCM output
+	pthread_mutex_lock(&pcmHandleMutex);
 	int err = snd_pcm_drop(handle);
 	if (err < 0) {
 		printf("PCM Drop error: %s\n", snd_strerror(err));
@@ -235,11 +243,7 @@ void Audio_queueSound(wavedata_t *pSound)
 		printf("PCM Prepare error: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
 	}
-//	err = snd_pcm_start(handle);
-//	if (err < 0) {
-//		printf("PCM start error: %s\n", snd_strerror(err));
-//		exit(EXIT_FAILURE);
-//	}
+	pthread_mutex_unlock(&pcmHandleMutex);
 
 	// Start Current Song Timer
 	Song_data_startTimer();
@@ -252,14 +256,14 @@ void Audio_cleanup(void)
 
 	// Stop the PCM generation thread
 	stop = true;
-	if (paused) {
-		Audio_togglePlayback();
-	}
+	Audio_setPause(false);
 	pthread_join(playbackThreadId, NULL);
 
+	pthread_mutex_lock(&pcmHandleMutex);
 	// Shutdown the PCM output, allowing any pending sound to play out (drain)
 	snd_pcm_drain(handle);
 	snd_pcm_close(handle);
+	pthread_mutex_unlock(&pcmHandleMutex);
 
 	// Free playback buffer
 	// (note that any wave files read into wavedata_t records must be freed
@@ -320,18 +324,25 @@ void Audio_setVolume(int newVolume)
     snd_mixer_close(handle);
 }
 
-void Audio_togglePlayback() {
-	paused = !paused;
+void Audio_setPause(_Bool newVal) {
+	paused = newVal;
+	pthread_mutex_lock(&pcmHandleMutex);
 	snd_pcm_pause(handle, paused); // false = 0 = resume, true = 1 = pause
+	pthread_mutex_unlock(&pcmHandleMutex);
 	if(!paused) {
 		pthread_cond_signal(&pauseCond);
 	}
 }
 
+_Bool Audio_getPause(void) {
+	return paused;
+}
+
 // Fill the playbackBuffer array with new PCM values to output.
 //    playbackBuffer: buffer to fill with new PCM data from sound bites.
 //    size: the number of values to store into playbackBuffer
-static void fillPlaybackBuffer(short *playbackBuffer, int size)
+// Returns true if it is done playing
+static _Bool fillPlaybackBuffer(short *playbackBuffer, int size)
 {
 	pthread_mutex_lock(&audioMutex);
 
@@ -340,7 +351,8 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 
 	_Bool donePlaying = false;
 
-	if ( (soundBites[0].pSound != NULL) && (soundBites[0].pSound->numSamples > 0) ){
+	if ( (soundBites[0].pSound != NULL) && (soundBites[0].pSound->numSamples > 0) &&
+			(soundBites[0].location < soundBites[0].pSound->numSamples) ){
 		// Looping through playbackBuffer
 		for (int j = 0; j < size; j++){
 
@@ -374,18 +386,8 @@ static void fillPlaybackBuffer(short *playbackBuffer, int size)
 
 	pthread_mutex_unlock(&audioMutex);
 
-	// Inside the lock will crash
-	if(donePlaying){
-		// printf("Song done playing\n");
-		_Bool replay = Song_data_getRepeat();
+	return donePlaying;
 
-		if(replay){
-			Song_data_replay();
-		}
-		else{
-			Song_data_playNext();
-		}
-	}
 }
 
 static void* playbackThread(void* arg){
@@ -398,21 +400,36 @@ static void* playbackThread(void* arg){
 			pthread_mutex_unlock(&audioMutex);
 		}
 		// Generate next block of audio
-		fillPlaybackBuffer(playbackBuffer, periodSize * numChannels_Global);
+		_Bool donePlaying = fillPlaybackBuffer(playbackBuffer, periodSize * numChannels_Global);
+
+		if(donePlaying){
+			// printf("Song done playing\n");
+			_Bool replay = Song_data_getRepeat();
+
+			if(replay){
+				Song_data_replay();
+			}
+			else{
+				Song_data_playNext();
+			}
+		}
+
 		loopCount++;
 		//printf("loopcount = %lld\n", loopCount);
 		// Output the audio
+
+		pthread_mutex_lock(&pcmHandleMutex);
 		snd_pcm_sframes_t frames = snd_pcm_writei(handle,
 				playbackBuffer, periodSize);
-
+		pthread_mutex_unlock(&pcmHandleMutex);
 		// Check for (and handle) possible error conditions on output
 		if (frames < 0) {
-			fprintf(stderr, "AudioMixer: writei() returned %li\n", frames);
+			fprintf(stderr, "AudioMixer: writei() returned %li, %s\n", frames, snd_strerror(frames));
 			frames = snd_pcm_recover(handle, frames, 1);
 		}
 		if (frames < 0) {
-			fprintf(stderr, "ERROR: Failed writing audio with snd_pcm_writei(): %li\n",
-					frames);
+			fprintf(stderr, "ERROR: Failed writing audio with snd_pcm_writei(): %li, %s\n",
+					frames, snd_strerror(frames));ESTRPIPE;
 			exit(EXIT_FAILURE);
 		}
 		if (frames > 0 && frames < periodSize) {

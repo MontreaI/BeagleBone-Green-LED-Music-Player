@@ -38,6 +38,7 @@ int  Audio_getVolume();
 void Audio_setVolume(int newVolume);
 
 // Pause/start audio playback.
-void Audio_togglePlayback();
+void Audio_setPause(_Bool newVal);
+_Bool Audio_getPause(void);
 
 #endif

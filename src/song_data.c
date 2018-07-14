@@ -101,17 +101,18 @@ void Song_data_playSong(int index){
 	currentSong = index;
 
 	printf("Playing: %s\n", songBuffer[currentSong]);
+	Audio_setPause(true);
+	Audio_freeWaveFileData(&currentSongFile);
 	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
 	Audio_queueSound(&currentSongFile);
+	Audio_setPause(false);
 }
 
 // Replay Current Song
 void Song_data_replay(){
 	printf("Replaying: %s\n", songBuffer[currentSong]);
 
-	Audio_freeWaveFileData(&currentSongFile);
-	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
-	Audio_queueSound(&currentSongFile);
+	Song_data_playSong(currentSong);
 }
 
 // Play Previous Song
@@ -144,9 +145,7 @@ void Song_data_playPrev(){
 	}
 
 	printf("Playing Prev %d: %s\n", currentSong, songBuffer[currentSong]);
-	Audio_freeWaveFileData(&currentSongFile);
-	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
-	Audio_queueSound(&currentSongFile);
+	Song_data_playSong(currentSong);
 }
 
 // Play Next Song
@@ -174,9 +173,7 @@ void Song_data_playNext(){
 	}
 
 	printf("Playing Next %d: %s\n", currentSong, songBuffer[currentSong]);
-	Audio_freeWaveFileData(&currentSongFile);
-	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
-	Audio_queueSound(&currentSongFile);
+	Song_data_playSong(currentSong);
 }
 
 // Allocates and returns array containing names of files in dirName

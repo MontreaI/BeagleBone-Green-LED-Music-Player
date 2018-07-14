@@ -103,7 +103,11 @@ static void* Joystick_thread(void* arg){
                 pthread_mutex_lock(&joystickMutex);
                 {
                     printf("IN\n");
-                    Audio_togglePlayback();
+                   	if (Audio_getPause()) {
+                   		Audio_setPause(false);
+                   	} else {
+                   		Audio_setPause(true);
+                   	}
                 }
                 pthread_mutex_unlock(&joystickMutex);
             }
