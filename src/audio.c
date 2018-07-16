@@ -1,4 +1,5 @@
 #include <alsa/asoundlib.h>
+#include <mpg123.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -194,7 +195,7 @@ void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
 	pthread_mutex_unlock(&audioMutex);
 }
 
-void Audio_freeWaveFileData(wavedata_t *pSound)
+void Audio_freeMusicFileData(wavedata_t *pSound)
 {
 	pthread_mutex_lock(&audioMutex);
 	pSound->numSamples = 0;
@@ -271,7 +272,7 @@ void Audio_cleanup(void)
 	free(playbackBuffer);
 	playbackBuffer = NULL;
 	for (int i = 0; i < MAX_SOUND_BITES; i++) {
-		Audio_freeWaveFileData(soundBites[MAX_SOUND_BITES].pSound);
+		Audio_freeMusicFileData(soundBites[MAX_SOUND_BITES].pSound);
 	}
 	for (int i = 0; i < filenameCount; i++) {
 		free(filenames[i]);
@@ -388,6 +389,49 @@ static _Bool fillPlaybackBuffer(short *playbackBuffer, int size)
 
 	return donePlaying;
 
+}
+
+void Audio_readMP3FileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
+{
+	printf("start MP3 to PCM\n");
+    mpg123_handle *mh;
+    unsigned char *buffer, *mp3;
+    size_t buffer_size, done;
+    int err, channels, encoding;
+    long rate;
+
+    mpg123_init();
+    mh = mpg123_new(NULL, &err);
+    buffer_size = mpg123_outblock(mh);
+    buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+	mp3 = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+	
+    // open the file and get the decoding format
+    mpg123_open(mh, fileName);
+    mpg123_getformat(mh, &rate, &channels, &encoding);
+    pWaveStruct->numChannels = channels;
+    pWaveStruct->sampleRate = rate;
+
+	// decode and load the bytes to memory
+	int offset = 0;
+	unsigned char *temp;
+	while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK) {
+		for (int i = 0; i != done; i++) {
+            mp3[i+offset] = buffer[i];
+        }
+		offset += done;
+		temp = (unsigned char*)realloc(mp3, offset+done);
+		mp3 = temp;
+	}
+	pWaveStruct->numSamples = offset / (sizeof(char));
+    pWaveStruct->pData = (short*) mp3;
+
+    // clean up
+    free(buffer);
+    mpg123_close(mh);
+    mpg123_delete(mh);
+    mpg123_exit();
+	printf("finish MP3 to PCM\n");
 }
 
 static void* playbackThread(void* arg){

@@ -99,11 +99,18 @@ void Song_data_toggleShuffle(){
 // Plays song at index
 void Song_data_playSong(int index){
 	currentSong = index;
+	int len = strlen(songBuffer[currentSong]);
 
 	printf("Playing: %s\n", songBuffer[currentSong]);
 	Audio_setPause(true);
-	Audio_freeWaveFileData(&currentSongFile);
-	Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
+	if (strcmp(&songBuffer[currentSong][len-3], "wav") == 0) {
+		Audio_freeMusicFileData(&currentSongFile);
+		Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
+	}
+	else if (strcmp(&songBuffer[currentSong][len-3], "mp3") == 0) {
+		Audio_freeMusicFileData(&currentSongFile);
+		Audio_readMP3FileIntoMemory(songBuffer[currentSong], &currentSongFile);
+	}
 	Audio_queueSound(&currentSongFile);
 	Audio_setPause(false);
 }
@@ -209,11 +216,8 @@ static char** getFilenames(char *dirName, int* pFilenameCount){
 					char* songName = (char*) malloc(strlen(SONG_DIR) + strlen(currEntity->d_name) + 1);
 					strcpy(songName, SONG_DIR);
 					strcat(songName, currEntity->d_name);
-					
-					if (strcmp(&songName[strlen(songName)-3], "wav") == 0) {
-						strcpy(dest[i], songName);
-						i++;
-					}			
+					strcpy(dest[i], songName);
+					i++;		
 				}
 			}
 			currEntity = readdir(pDir);

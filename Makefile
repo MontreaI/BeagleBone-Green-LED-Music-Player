@@ -24,7 +24,7 @@ wav:
 
 # Compiles music player app to the shared folder
 player:
-	$(CC_C) $(CFLAGS) -I inc -o $(PROJECT_DIR)/$(TARGET) $(SOURCES) $(LFLAGS) -lpthread -lasound
+	$(CC_C) $(CFLAGS) -I inc -o $(PROJECT_DIR)/$(TARGET) $(SOURCES) $(LFLAGS) -lpthread -lasound -lmpg123
 
 # Deletes PROJECT_DIR
 clean:

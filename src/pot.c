@@ -50,7 +50,7 @@ void POT_cleanup()
 
 static void* POT_thread(void* arg)
 {
-     while (!stopping) {
+    while (!stopping) {
         pthread_mutex_lock(&potMutex);
         Audio_setVolume(POT_getVolume());
         pthread_mutex_unlock(&potMutex);
@@ -109,6 +109,7 @@ static int POT_getCurrVolt()
     FILE *file = fopen(A2D_FILE_VOLTAGE0, "r");
 
     if (!file) {
+        nanosleep((const struct timespec[]){{SLEEP_SEC, 0}}, NULL);
         file = fopen(A2D_FILE_VOLTAGE0, "r");
         if (!file) {
             printf("ERROR pot getCurrVolt: Cannot open voltage input file\n");

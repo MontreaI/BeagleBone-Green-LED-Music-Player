@@ -6,6 +6,7 @@
 void Song_data_init();
 void Song_data_cleanup();
 
+void Song_data_playMP3();
 void Song_data_playSong(int index);		// Play song of index
 void Song_data_playPrev();				// Plays previous song
 void Song_data_playNext();				// Plays next song (Depends if shuffle on/off)
@@ -20,5 +21,10 @@ _Bool Song_data_getShuffle();			// Return true if shuffle is on
 
 void Song_data_toggleRepeat();			// Toggle Repeat
 void Song_data_toggleShuffle();			// Toggle Shuffle
+
+// wavedata_t Song_data_getCurrentSongFile();
+int Song_data_getCurrentSong();
+char** Song_data_getSongBuffer();
+int Song_data_getSongBufferSize();
 
 #endif
