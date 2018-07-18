@@ -106,12 +106,11 @@ void Song_data_playSong(int index){
 	if (strcmp(&songBuffer[currentSong][len-3], "wav") == 0) {
 		Audio_freeMusicFileData(&currentSongFile);
 		Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
+		Audio_queueSound(&currentSongFile);
 	}
-	else if (strcmp(&songBuffer[currentSong][len-3], "mp3") == 0) {
-		Audio_freeMusicFileData(&currentSongFile);
-		Audio_readMP3FileIntoMemory(songBuffer[currentSong], &currentSongFile);
+	if (strcmp(&songBuffer[currentSong][len-3], "mp3") == 0) {
+		Audio_playMP3(songBuffer[currentSong], &currentSongFile);
 	}
-	Audio_queueSound(&currentSongFile);
 	Audio_setPause(false);
 }
 

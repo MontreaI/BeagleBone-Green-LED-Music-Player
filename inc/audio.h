@@ -26,7 +26,7 @@ void Audio_cleanup(void);
 // the pData pointer in this structure will be dynamically allocated in
 // readWaveFileIntoMemory(), and is freed by calling freeWaveFileData().
 void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pSound);
-void Audio_readMP3FileIntoMemory(char *fileName, wavedata_t *pSound);
+void Audio_playMP3(char *fileName, wavedata_t *pSound);
 void Audio_freeMusicFileData(wavedata_t *pSound);
 
 // Queue up another sound bite to play as soon as possible.
@@ -41,7 +41,5 @@ void Audio_setVolume(int newVolume);
 // Pause/start audio playback.
 void Audio_setPause(_Bool newVal);
 _Bool Audio_getPause(void);
-
-void MP3_to_PCM(char *fileName, wavedata_t *pWaveStruct);
 
 #endif

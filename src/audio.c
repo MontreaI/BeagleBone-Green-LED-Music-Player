@@ -391,47 +391,80 @@ static _Bool fillPlaybackBuffer(short *playbackBuffer, int size)
 
 }
 
-void Audio_readMP3FileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
+void Audio_playMP3(char *fileName, wavedata_t *pSound)
 {
-	printf("start MP3 to PCM\n");
-    mpg123_handle *mh;
-    unsigned char *buffer, *mp3;
+	mpg123_handle *mh;
+    unsigned char *buffer;
     size_t buffer_size, done;
-    int err, channels, encoding;
-    long rate;
+    int mpg123_err, pcm_err, channels, encoding, size, total_bytes;
+    long rate, playback_us;
 
     mpg123_init();
-    mh = mpg123_new(NULL, &err);
+    mh = mpg123_new(NULL, &mpg123_err);
     buffer_size = mpg123_outblock(mh);
     buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
-	mp3 = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
 	
     // open the file and get the decoding format
     mpg123_open(mh, fileName);
     mpg123_getformat(mh, &rate, &channels, &encoding);
-    pWaveStruct->numChannels = channels;
-    pWaveStruct->sampleRate = rate;
+	size = channels * 16 / 8;
+	total_bytes = (mpg123_length(mh) * size) >> 2;
+	playback_us = ((unsigned long long) total_bytes * 1000000) / rate;
 
-	// decode and load the bytes to memory
-	int offset = 0;
-	unsigned char *temp;
-	while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK) {
-		for (int i = 0; i != done; i++) {
-            mp3[i+offset] = buffer[i];
-        }
-		offset += done;
-		temp = (unsigned char*)realloc(mp3, offset+done);
-		mp3 = temp;
+	pthread_mutex_lock(&pcmHandleMutex);
+	pcm_err = snd_pcm_drop(handle);
+	if (pcm_err < 0) {
+		printf("PCM Drop error: %s\n", snd_strerror(pcm_err));
+		exit(EXIT_FAILURE);
 	}
-	pWaveStruct->numSamples = offset / (sizeof(char));
-    pWaveStruct->pData = (short*) mp3;
+	pcm_err = snd_pcm_set_params(handle,
+			SND_PCM_FORMAT_S16_LE,
+			SND_PCM_ACCESS_RW_INTERLEAVED,
+			channels,
+			rate,
+			1,
+			playback_us);
+	if (pcm_err < 0) {
+		printf("Playback open error: %s\n", snd_strerror(pcm_err));
+		exit(EXIT_FAILURE);
+	}
+	pcm_err = snd_pcm_prepare(handle);
+	if (pcm_err < 0) {
+		printf("PCM Prepare error: %s\n", snd_strerror(pcm_err));
+		exit(EXIT_FAILURE);
+	}
+	pthread_mutex_unlock(&pcmHandleMutex);
 
-    // clean up
+	while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK) {
+		// pSound->pData = (short*) buffer;
+		pthread_mutex_lock(&pcmHandleMutex);
+		snd_pcm_sframes_t frames = snd_pcm_writei(handle, buffer, done/size);
+		pthread_mutex_unlock(&pcmHandleMutex);
+
+		// Check for errors
+		if (frames < 0)
+			frames = snd_pcm_recover(handle, frames, 0);
+
+		if (frames < 0) {
+			fprintf(stderr, "ERROR: Failed writing audio with snd_pcm_writei(): %li\n", frames);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	// clean up
     free(buffer);
     mpg123_close(mh);
     mpg123_delete(mh);
     mpg123_exit();
-	printf("finish MP3 to PCM\n");
+
+	_Bool replay = Song_data_getRepeat();
+	if(replay){
+		Song_data_replay();
+	}
+	else{
+		Song_data_playNext();
+	}
+	loopCount++;
 }
 
 static void* playbackThread(void* arg){
