@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -147,6 +148,10 @@ static int **ledTrack;
 static int **ledAlbum;
 static int **ledartist;
 static int **ledTrackTime;
+
+static _Bool stop = false;
+static int timerThreadId;
+
 //static int reallocLength;
 /**
  * exportAndOut
@@ -406,6 +411,8 @@ void ledMatrix_init()
     // Setup pins
     ledMatrix_setupPins();
     ledMatrix_refresh();
+    // Launch timer thread:
+	pthread_create(&timerThreadId, NULL, timerThread, NULL);
 }
 
 int **ledMatrix_extract_string(char *string)
@@ -681,6 +688,9 @@ void ledMatrix_music_timer(int duration) {
 }
 
 void ledMatrix_clean() {
+	stop = true;
+	pthread_join(timerThreadId, NULL);
+
     memset(screen, 0, sizeof(screen));
     ledMatrix_refresh();
     free(ledTrack);
@@ -692,6 +702,13 @@ void ledMatrix_clean() {
 void ledMatrix_clear() {
     memset(screen, 0, sizeof(screen));
     ledMatrix_refresh();
+}
+
+static void* timerThread(void* arg){
+	while(!stop) {
+		ledMatrix_music_timer(Song_data_getTimer());
+	}
+	return NULL;
 }
 /*
 
