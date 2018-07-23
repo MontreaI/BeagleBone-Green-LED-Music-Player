@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,6 +8,8 @@
 #include <time.h>
 #include "led_matrix.h"
 #include <ctype.h>
+#include <song_data.h>
+#include <pthread.h>
 
 /*** GLOBAL VARIABLE ***/
 /* GPIO PATH */
@@ -53,8 +56,6 @@ static int fileDesc_b;
 static int fileDesc_c;
 
 /* LED ALPHABET */
-//static int A[7][3] = {{5,9,0}, {1,0,1}, {1,0,1}, {1,1,1}, {1,0,1}, {1,0,1}, {1,0,5}};
-//static int B[7][3] = {{6,7,0}, {1,0,1}, {1,0,1}, {1,1,1}, {1,0,1}, {1,0,1}, {1,0,6}};
 static int A[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}};
 static int B[7][3] = {{1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}};
 static int C[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 1, 0}};
@@ -101,7 +102,7 @@ static int p[7][3] = {{1, 1, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}, {1,
 static int q[7][3] = {{0, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}, {0, 0, 1}, {0, 0, 1}};
 static int r[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0}};
 static int s[7][3] = {{0, 0, 0}, {0, 0, 0}, {0, 1, 1}, {1, 0, 0}, {1, 1, 1}, {0, 0, 1}, {1, 1, 0}};
-static int t[7][3] = {{0, 0, 0}, {0, 1, 0}, {1, 1, 1}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 0, 1}};
+static int t[7][3] = {{0, 1, 0}, {0, 1, 0}, {1, 1, 1}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 0, 1}};
 static int u[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}};
 static int v[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
 static int w[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 1}, {1, 0, 1}, {1, 1, 1}, {1, 1, 1}, {0, 1, 1}};
@@ -109,10 +110,16 @@ static int x[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}, {1,
 static int y[7][3] = {{1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}, {0, 0, 1}, {1, 1, 0}};
 static int z[7][3] = {{0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {0, 0, 1}, {0, 1, 0}, {1, 0, 0}, {1, 1, 1}};
 
+/* LED INTRO CHARACTERS */
+static int SFU_S[8][5] = {{0, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 0, 0, 0}, {1, 1, 1, 0, 0}, {0, 1, 1, 1, 1}, {0, 0, 0, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 0}};
+static int SFU_F[8][5] = {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 0, 0, 0}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 0, 0, 0}, {1, 1, 0, 0, 0}, {1, 1, 0, 0, 0}};
+static int SFU_U[8][5] = {{1, 1, 0, 1, 1}, {1, 1, 0, 1, 1}, {1, 1, 0, 1, 1}, {1, 1, 0, 1, 1}, {1, 1, 0, 1, 1}, {1, 1, 0, 1, 1}, {1, 1, 0, 1, 1}, {0, 1, 1, 1, 0}};
+
 /* LED SPECIAL CHARACTERS */
 static int tab[7][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
 static int colon[7][3] = {{0, 0, 0}, {0, 1, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 0, 0}};
-/* LED NUMBERS */
+
+/* LED NUMBERS 0-9 */
 static int zero[7][3] = {{0, 1, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 0, 1}, {1, 1, 0}};
 static int one[7][3] = {{0, 1, 0}, {1, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {1, 1, 1}};
 static int two[7][3] = {{0, 1, 0}, {1, 0, 1}, {0, 0, 1}, {0, 1, 0}, {1, 0, 0}, {1, 0, 0}, {1, 1, 1}};
@@ -124,7 +131,7 @@ static int seven[7][3] = {{1, 1, 1}, {0, 0, 1}, {0, 0, 1}, {0, 1, 0}, {1, 0, 0},
 static int eight[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {0, 1, 0}};
 static int nine[7][3] = {{0, 1, 0}, {1, 0, 1}, {1, 0, 1}, {0, 1, 1}, {0, 0, 1}, {1, 0, 1}, {0, 1, 0}};
 
-static int appendedLength = 0;
+/* Arrays containing the characters */
 static int *uppercaseAlphabet[] = {
     &A[0][0], &B[0][0], &C[0][0], &D[0][0], &E[0][0], &F[0][0], &G[0][0], &H[0][0], &I[0][0],
     &J[0][0], &K[0][0], &L[0][0], &M[0][0], &N[0][0], &O[0][0], &P[0][0], &Q[0][0], &R[0][0],
@@ -136,17 +143,34 @@ static int *lowercaseAlphabet[] = {
     &s[0][0], &t[0][0], &u[0][0], &v[0][0], &w[0][0], &x[0][0], &y[0][0], &z[0][0]};
 
 static int *numbers[] = {
-    &zero[0][0], &one[0][0], &two[0][0], &three[0][0], &four[0][0], &five[0][0], &six[0][0], 
+    &zero[0][0], &one[0][0], &two[0][0], &three[0][0], &four[0][0], &five[0][0], &six[0][0],
     &seven[0][0], &eight[0][0], &nine[0][0]};
+
+static int *SFU[] = {&SFU_S[0][0], &SFU_F[0][0], &SFU_U[0][0]};
+
+/* Miscellaneous declared static variables */
 
 static int alphabetRows = 7;
 static int alphabetCols = 3;
 static int titleLength = 0;
-
 static int **ledTrack;
 static int **ledAlbum;
 static int **ledartist;
 static int **ledTrackTime;
+static int currentSong = 0;
+
+static _Bool stop = false;
+static pthread_t timerThreadId;
+
+static void *timerThread(void *arg)
+{
+    while (!stop)
+    {
+        ledMatrix_music_timer(Song_data_getTimer(), 0, 16764159);
+    }
+    return NULL;
+}
+
 //static int reallocLength;
 /**
  * exportAndOut
@@ -362,7 +386,7 @@ static void ledMatrix_setColourBottom(int colour)
  *  ledMatrix_refresh
  *  Fill the LED Matrix with the respective pixel colour
  */
-static void ledMatrix_refresh(void)
+void ledMatrix_refresh(void)
 {
     for (int rowNum = 0; rowNum < 8; rowNum++)
     {
@@ -400,13 +424,90 @@ static void ledMatrix_setPixel(int x, int y, int colour)
     return;
 }
 
+/**
+ *  Initialize the LED Matrix GPIO pins and also set the entire screen array to have values of 0.
+ */
+
 void ledMatrix_init()
 {
     memset(screen, 0, sizeof(screen));
-    // Setup pins
     ledMatrix_setupPins();
+}
+
+/**
+ *  The splash screen that appears after the call to init.
+ *  Currently splash screen lasts for 3 seconds, however this can be changed anytime.
+ */
+
+void ledMatrix_start_music_timer(_Bool start)
+{   
+    if(start) {
+        pthread_create(&timerThreadId, NULL, timerThread, NULL);
+    }
+    else{
+        stop = true;
+        pthread_join(timerThreadId, NULL);
+    }
+}
+
+void ledMatrix_splash_screen()
+{
+    time_t endwait;
+    time_t start = time(NULL);
+    time_t second = 3; // end loop after this time has elapsed
+    memset(screen, 0, sizeof(screen));
+    for (int row = 0; row < 16; row += 2)
+    {
+        for (int col = 0; col < 32; col++)
+        {
+            if (col % 2 == 0)
+            {
+                ledMatrix_setPixel(row, col, 1);
+            }
+            else
+            {
+                ledMatrix_setPixel(row + 1, col, 1);
+            }
+
+            //System.out.print(matrix[row][col] + " ");
+        }
+    }
+    int increment = 15;
+    for (int k = 0; k < 3; k++)
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            for (int j = 0; j < 5; j++)
+            {
+                if (SFU[k][i * 5 + j] == 1)
+                {
+                    ledMatrix_setPixel(i + 8, j + increment, 16777215);
+                }
+            }
+        }
+        increment += 6;
+    }
+
+    endwait = start + second;
+
+    while (start < endwait)
+    {
+        ledMatrix_refresh();
+        start = time(NULL);
+    }
+    memset(screen, 0, sizeof(screen));
     ledMatrix_refresh();
 }
+/**
+ *  Takes a string and extracts each character from it, however the supported extractable characters at the moment is only:
+ * 
+ *      1. Entire alphabet (upper and lower case) 
+ *      2. Numbers
+ *      3. Tabs
+ * 
+ *  @params:
+ *      char *string: Track, artist, album, song duration, etc..                
+ */
 
 int **ledMatrix_extract_string(char *string)
 {
@@ -448,9 +549,9 @@ int **ledMatrix_extract_string(char *string)
     return ptr;
 }
 
-int ledMatrix_music_details(char *track, char *album, char *artist)
+int ledMatrix_music_details(char *track, int colour, int rowOffSet)
 {
-
+    memset(screen, 0, sizeof(screen));
     ledTrack = ledMatrix_extract_string(track);
 
     int increment = 0;
@@ -465,10 +566,10 @@ int ledMatrix_music_details(char *track, char *album, char *artist)
         {
             if (ledTrack[increment] == NULL)
             {
-                increment2 += 1;
-                increment++;
+                increment2 -=2;
+                //increment += 1;
                 isrealloc = 1;
-                counter -= 1;
+                counter --;
             }
             if (isrealloc != 1)
             {
@@ -476,10 +577,9 @@ int ledMatrix_music_details(char *track, char *album, char *artist)
                 {
                     for (int cols = 0; cols < alphabetCols; cols++)
                     {
-                        //printf("test %d\n", rows*3+cols);
-                        if (ledTrack[increment][rows * 3 + cols] == 1 && cols + increment2 < SCREEN_WIDTH)
+                        if (ledTrack[increment][rows * 3 + cols] == 1 && cols + increment2 < SCREEN_WIDTH && rows + rowOffSet >= 0 && rows + rowOffSet < 16)
                         {
-                            ledMatrix_setPixel(rows, cols + increment2, 1);
+                            ledMatrix_setPixel(rows + rowOffSet, cols + increment2, colour);
                             isrealloc = 1;
                         }
                     }
@@ -500,13 +600,11 @@ int ledMatrix_music_details(char *track, char *album, char *artist)
             increment++;
             increment2 += 4;
         }
-        appendedLength = counter - 1;
         return strlen(track) + temp;
     }
     else
     {
-        int offset = (SCREEN_WIDTH - (strlen(track) + (strlen(track) * 3))) / 2;
-        printf("OFFSET%d\n", (SCREEN_WIDTH - (7 + (strlen(track) * 3))) / 2);
+        int offset = (abs(SCREEN_WIDTH - (strlen(track) + (strlen(track) * 3))) / 2);
         for (int j = 0; j < strlen(track); j++)
         {
             if (ledTrack[increment] == NULL)
@@ -519,9 +617,9 @@ int ledMatrix_music_details(char *track, char *album, char *artist)
             {
                 for (int cols = 0; cols < alphabetCols; cols++)
                 {
-                    if (ledTrack[increment][rows * 3 + cols] == 1 && cols + increment2 < SCREEN_WIDTH)
+                    if (ledTrack[increment][rows * 3 + cols] == 1 && cols + increment2 < SCREEN_WIDTH && rows + rowOffSet >= 0 && rows + rowOffSet < 16)
                     {
-                        ledMatrix_setPixel(rows, offset + cols + increment2, 1);
+                        ledMatrix_setPixel(rows + rowOffSet, offset + cols + increment2, colour);
                     }
                 }
             }
@@ -529,16 +627,12 @@ int ledMatrix_music_details(char *track, char *album, char *artist)
             increment2 += 4;
         }
     }
-
-    ledAlbum = NULL;  //ledMatrix_extract_string(album);
-    ledartist = NULL; //ledMatrix_extract_string(artist);
     return 0;
 }
 
-static void ledMatrix_slideTrack(int **ledT, int track)
+static void ledMatrix_slideTrack(int **ledT, int track, int colour, int rowOffSet)
 {
     int breakout = -1;
-    //int remainder = 0;
     for (int fuck = 0; fuck < titleLength; fuck++)
     {
         if (&ledT[fuck][0] == NULL)
@@ -552,14 +646,12 @@ static void ledMatrix_slideTrack(int **ledT, int track)
     }
     int remainder = breakout % 32;
     int multiplier = breakout / 32;
-    int countme = 32 + remainder + (32 - (remainder % 32)) + (remainder / 32);
-    printf("titleLength %d breakout: %d remainder: %d", countme, breakout, breakout % 32);
     int increment = 0;
     int increment2 = 0;
-    printf("total length %d\n", track);
+
     for (int test = 0; test >= -1 * ((remainder + 32 * multiplier) + 1); test--)
     {
-        memset(screen, 0, sizeof(screen));
+        ledMatrix_clear_top();
         increment = 0;
         increment2 = 0;
 
@@ -577,7 +669,7 @@ static void ledMatrix_slideTrack(int **ledT, int track)
                 {
                     if (ledT[increment][rows * 3 + cols] == 1 && cols + increment2 + test < SCREEN_WIDTH && test + cols + increment2 >= 0)
                     {
-                        ledMatrix_setPixel(rows, test + cols + increment2, 1);
+                        ledMatrix_setPixel(rows + rowOffSet, test + cols + increment2, colour);
                     }
                 }
             }
@@ -591,129 +683,184 @@ static void ledMatrix_slideTrack(int **ledT, int track)
     return;
 }
 
-void ledMatrix_track_display(char* track) {
-    time_t endwait;
-    time_t start = time(NULL);
-    time_t seconds = 10; // end loop after this time has elapsed
-    int isOverflow = ledMatrix_music_details(track, NULL, NULL);
+void ledMatrix_music_track_display(char *track, int colour, int rowOffSet)
+{
+    int isOverflow = ledMatrix_music_details(track, colour, rowOffSet);
     if (isOverflow != 0)
     {
-        while (1)
-        {
-            ledMatrix_slideTrack(ledTrack, isOverflow);
-            endwait = start + seconds;
-            while (start < endwait)
-            {
-                ledMatrix_refresh();
-                start = time(NULL);
-            }
-        }
+            ledMatrix_slideTrack(ledTrack, isOverflow, colour, rowOffSet);
     }
-    else
-    {
-        while (1)
-        {
-            ledMatrix_refresh();
-        }
-    }
-
 }
 
-void ledMatrix_music_timer(int duration) {
-        
+void ledMatrix_music_timer(int duration, int horizontalOffset, int colour)
+{
+
     time_t endwait;
     time_t start = time(NULL);
     time_t second = 1; // end loop after this time has elapsed
 
     char bufferMinutes[128];
     char bufferSeconds[128];
-    int seconds = duration%60;
-    int minutes = (duration-seconds)/60;
+    int seconds = duration % 60;
+    int minutes = (duration - seconds) / 60;
 
     sprintf(bufferMinutes, "%d", minutes);
     sprintf(bufferSeconds, "%d", seconds);
 
     strcat(bufferMinutes, ":");
-    if(seconds < 10) {
+    if (seconds < 10)
+    {
         strcat(bufferMinutes, "0");
     }
     strcat(bufferMinutes, bufferSeconds);
     strcat(bufferMinutes, "\0");
 
-    //printf("time %s\n", bufferMinutes);
     int increment = 0;
     int increment2 = 0;
 
     ledTrackTime = ledMatrix_extract_string(bufferMinutes);
+    int verticalOffset = 9;
 
-            int horizontalOffset = (SCREEN_WIDTH - (strlen(bufferMinutes) + (strlen(bufferMinutes) * 3))) / 2;
-            int verticalOffset  = (SCREEN_HEIGHT/2) - alphabetRows/2;
-        //printf("OFFSET%d\n", (SCREEN_WIDTH - (7 + (strlen(track) * 3))) / 2);
-        for (int j = 0; j < strlen(bufferMinutes); j++)
+    for (int j = 0; j < strlen(bufferMinutes); j++)
+    {
+        if (ledTrackTime[increment] == NULL)
         {
-            if (ledTrackTime[increment] == NULL)
+            increment2 += 1;
+            increment++;
+            continue;
+        }
+        for (int rows = 0; rows < alphabetRows; rows++)
+        {
+            for (int cols = 0; cols < alphabetCols; cols++)
             {
-                increment2 += 1;
-                increment++;
-                continue;
-            }
-            for (int rows = 0; rows < alphabetRows; rows++)
-            {
-                for (int cols = 0; cols < alphabetCols; cols++)
+                if (ledTrackTime[increment][rows * 3 + cols] == 1 && cols + increment2 < SCREEN_WIDTH)
                 {
-                    if (ledTrackTime[increment][rows * 3 + cols] == 1 && cols + increment2 < SCREEN_WIDTH)
-                    {
-                        ledMatrix_setPixel(verticalOffset+rows, horizontalOffset + cols + increment2, 1);
-                    }
+                    ledMatrix_setPixel(verticalOffset + rows, cols + increment2, colour);
+                    ledMatrix_setPixel(verticalOffset + rows, horizontalOffset + cols + increment2, colour);
                 }
             }
-            increment++;
-            increment2 += 4;
         }
-        endwait = start + second;
-        while (start < endwait)
-            {
-                ledMatrix_refresh();
-                start = time(NULL);
-            }
-        memset(screen, 0, sizeof(screen));
-        free(ledTrackTime);
+        increment++;
+        // This is a hack and assumes the song we are getting is below 10 minutes.
+        if(increment == 1 || increment ==2) {
+            increment2 += 3;
+        }
+        else{
+        increment2 += 4;
+        }
+    }
+    endwait = start + second;
+    while (start < endwait)
+    {
+        ledMatrix_refresh();
+        start = time(NULL);
+    }
+    if (horizontalOffset == 0) {
+            for (int rows = 7; rows < SCREEN_HEIGHT; rows++)
+    {
+        for (int cols = 0; cols < 13; cols++)
+        {
+
+            ledMatrix_setPixel(rows, cols, 0);
+        }
+    }
+    }
+    else {
+        ledMatrix_setPixel(9, 18, 5);
+        ledMatrix_setPixel(10, 17, 5);
+        ledMatrix_setPixel(11, 16, 5);
+        ledMatrix_setPixel(12, 15, 5);
+        ledMatrix_setPixel(13, 14, 5);
+        ledMatrix_setPixel(14, 13, 5);
+    }
+    free(ledTrackTime);
+    ledTrackTime = NULL;
 }
 
-void ledMatrix_clean() {
-    memset(screen, 0, sizeof(screen));
-    ledMatrix_refresh();
+void ledMatrix_clear_bottom()
+{
+    for (int rows = 7; rows < SCREEN_HEIGHT; rows++)
+    {
+        for (int cols = 0; cols < SCREEN_WIDTH; cols++)
+        {
+
+            ledMatrix_setPixel(rows, cols, 0);
+        }
+    }
+}
+
+void ledMatrix_clear_top()
+{
+    for (int rows = 0; rows < 7; rows++)
+    {
+        for (int cols = 0; cols < SCREEN_WIDTH; cols++)
+        {
+
+            ledMatrix_setPixel(rows, cols, 0);
+        }
+    }
+}
+/**
+ *  Use this method whenever you switch switch songs, because you want to clear the existing data to make room for new data or else you'll have memory leaks...
+ */
+void ledMatrix_clean()
+{
+    stop = true;
+    pthread_join(timerThreadId, NULL);
     free(ledTrack);
     free(ledAlbum);
     free(ledartist);
-    free(ledTrackTime);
+    if(ledTrackTime != NULL) {
+        free(ledTrackTime);
+    }
+    ledTrack = ledAlbum = ledartist = NULL;
 }
 
-void ledMatrix_clear() {
+void ledMatrix_clear()
+{
     memset(screen, 0, sizeof(screen));
     ledMatrix_refresh();
 }
-/*
 
-int main()
-{
-    
-
-    int music_time = 400;
-    ledMatrix_init();
-    while (1) {
-    ledMatrix_music_timer(music_time);
-            music_time-=1;
+void ledMatrix_song_list(song songList[], int nextSong, int colour) {
+    int offset = 4;
+    if(nextSong == currentSong) {
+        ledMatrix_music_details(songList[currentSong].track, colour, 4);
+        ledMatrix_refresh();
+    }
+    else{
+        if(nextSong < currentSong) {
+        for (int i = 0; i < 12; i++) {
+            ledMatrix_music_details(songList[currentSong].track, colour, offset);
+                    ledMatrix_refresh();
+        //struct timespec reqDelay = {DELAY_IN_SEC, 9000000};
+        //nanosleep(&reqDelay, (struct timespec *)NULL);
+        offset++;
         }
-    
-    //while(1){
-    //ledMatrix_slideLetter(a, sizeof(a)/sizeof(a[0]), sizeof(a[0])/sizeof(a[0][0]));
-    //}
-    //int isLong = ledMatrix_music_details("EXO - LOVE ME RIGHT", NULL, NULL);
-    //int isLong = ledMatrix_music_details("EXO - KO KO BOP", NULL, NULL);
-    //int isLong = ledMatrix_music_details("WINNER - REALLY REALLY MV", NULL, NULL);
-     //int isLong = ledMatrix_music_details("WINNER", NULL, NULL);
-    //ledMatrix_track_display("WINNER - Really Really MV");
-    return 0;
+        offset = -7;
+        for (int i = 0; i < 12; i++) {
+            ledMatrix_music_details(songList[nextSong].track, colour, offset);
+                    ledMatrix_refresh();
+        offset++;
+        }
+        }
+        else{
+        for (int i = 0; i < 12; i++) {
+            ledMatrix_music_details(songList[currentSong].track, colour, offset);
+                    ledMatrix_refresh();
+        //struct timespec reqDelay = {DELAY_IN_SEC, 9000000};
+        //nanosleep(&reqDelay, (struct timespec *)NULL);
+        offset--;
+        }
+        offset = 15;
+        for (int i = 0; i < 12; i++) {
+            ledMatrix_music_details(songList[nextSong].track, colour, offset);
+                    ledMatrix_refresh();
+        offset--;
+        }
+        }
+        currentSong = nextSong;
+    }
+
+
 }
-*/
