@@ -16,7 +16,6 @@
 static char** songBuffer;			// Song List
 static int songBufferSize = 0; 		// Stores num of songs
 static int currentSong = 0;			// Current Song playing
-static wavedata_t currentSongFile;
 
 // TIMER
 static time_t startSongTime;		// Time which song started playing
@@ -102,16 +101,14 @@ void Song_data_playSong(int index){
 	int len = strlen(songBuffer[currentSong]);
 
 	printf("Playing: %s\n", songBuffer[currentSong]);
-	Audio_setPause(true);
+	// Audio_setPause(true);
 	if (strcmp(&songBuffer[currentSong][len-3], "wav") == 0) {
-		Audio_freeMusicFileData(&currentSongFile);
-		Audio_readWaveFileIntoMemory(songBuffer[currentSong], &currentSongFile);
-		Audio_queueSound(&currentSongFile);
+		Audio_playWAV(songBuffer[currentSong]);
 	}
 	if (strcmp(&songBuffer[currentSong][len-3], "mp3") == 0) {
-		Audio_playMP3(songBuffer[currentSong], &currentSongFile);
+		Audio_playMP3(songBuffer[currentSong]);
 	}
-	Audio_setPause(false);
+	// Audio_setPause(false);
 }
 
 // Replay Current Song

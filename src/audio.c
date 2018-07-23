@@ -16,65 +16,29 @@
 #include "led_matrix.h"
 #include "song_data.h"
 
-// Private functions forward declarations
-static _Bool fillPlaybackBuffer(short *playbackBuffer, int size);
-static void* playbackThread(void* arg);
-
 static snd_pcm_t *handle;
 
 #define DEFAULT_VOLUME 80
+#define BITS_PER_BYTE 8
 
-#define SAMPLE_SIZE (sizeof(short)) 			// bytes per sample
-// Sample size note: This works for mono files because each sample ("frame') is 1 value.
-// If using stereo files then a frame would be two samples.
-
-static unsigned long periodSize = 0; //number of frames per buffer
-static unsigned long playbackBufferSize = 0;
-static short *playbackBuffer = NULL;
 static long long loopCount = 0;
-
-// Currently active (waiting to be played) sound bites
-#define MAX_SOUND_BITES 1
-typedef struct {
-	// A pointer to a previously allocated sound bite (wavedata_t struct).
-	// Note that many different sound-bite slots could share the same pointer
-	// (overlapping cymbal crashes, for example)
-	wavedata_t *pSound;
-
-	// The offset into the pData of pSound. Indicates how much of the
-	// sound has already been played (and hence where to start playing next).
-	int location;
-} playbackSound_t;
-static playbackSound_t soundBites[MAX_SOUND_BITES];
 static char** filenames = NULL;;
 static int filenameCount = 0;
 
-// Playback threading
-void* playbackThread(void* arg);
+// Playback threadin
 static _Bool stop = false;
 static _Bool paused = false;
-static pthread_t playbackThreadId;
 pthread_mutex_t audioMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t pauseCond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t pcmHandleMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int volume = 0;
-static int numChannels_Global = 2;
 
 void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 {
 	printf("Audio_init()\n");
 	Audio_setVolume(DEFAULT_VOLUME);
-	numChannels_Global = numChannels;
-	// Initialize the currently active sound-bites being played
-	// REVISIT:- Implement this. Hint: set the pSound pointer to NULL for each
-	//     sound bite.
-	pthread_mutex_lock(&audioMutex);
-	for (int i = 0; i < MAX_SOUND_BITES; i++) {
-		soundBites[i].pSound = NULL;
-	}
-	pthread_mutex_unlock(&audioMutex);
 
 	pthread_mutex_lock(&pcmHandleMutex);
 	// Open the PCM output
@@ -91,164 +55,12 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 			numChannels,
 			sampleRate,
 			1,			// Allow software resampling
-			50000);		// 0.05 seconds per buffer
+			50000);		// 0.05 seconds per buffer	
 	if (err < 0) {
 		printf("Playback open error: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
 	}
 	pthread_mutex_unlock(&pcmHandleMutex);
-
-	// Allocate this software's playback buffer to be the same size as the
-	// the hardware's playback buffers for efficient data transfers.
-	// ..get info on the hardware buffers:
- 	unsigned long unusedBufferSize = 0;
-	snd_pcm_get_params(handle, &unusedBufferSize, &periodSize);
-	playbackBufferSize = periodSize * numChannels;
-	// ..allocate playback buffer:
-	playbackBuffer = malloc(playbackBufferSize * sizeof(*playbackBuffer));
-
-	// Launch playback thread:
-	pthread_create(&playbackThreadId, NULL, playbackThread, NULL);
-}
-
-// Read in the file to dynamically allocated memory.
-// !! Client code must free memory in wavedata_t !!
-void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pWaveStruct)
-{
-	pthread_mutex_lock(&audioMutex);
-
-	assert(pWaveStruct);
-
-	// Wave file has 44 bytes of header data. This code assumes file
-	// is correct format.
-	const int DATA_OFFSET_INTO_WAVE = 44;
-	const int WAVE_FIELD_OFFSET = 8;
-	const int NUM_CHANNELS_OFFSET = 22;
-	const int SAMPLE_RATE_OFFSET = 24;
-	const int SAMPLE_SIZE_OFFSET = 34;
-	const int BITS_PER_BYTE = 8;
-
-	// Open file
-	FILE *file = fopen(fileName, "r");
-	if (file == NULL) {
-		fprintf(stderr, "ERROR: Unable to open file %s.\n", fileName);
-		exit(EXIT_FAILURE);
-	}
-
-	// Check if fileName is a wave file
-	const int fieldSize = 4;
-	char fieldBuff[fieldSize+1];
-	const char waveHeader[] = "WAVE";
-	fseek(file, WAVE_FIELD_OFFSET, SEEK_SET);
-	fread(fieldBuff, fieldSize, sizeof(char), file);
-	fieldBuff[fieldSize] = '\0';
-	if (strcmp(fieldBuff, waveHeader)) {
-		return;
-	}
-
-	// Get file size
-	fseek(file, 0, SEEK_END);
-	int sizeInBytes = ftell(file) - DATA_OFFSET_INTO_WAVE;
-
-	uint16_t numChannels;
-	fseek(file, NUM_CHANNELS_OFFSET, SEEK_SET);
-	fread(&numChannels, 1, sizeof(uint16_t), file);
-	pWaveStruct->numChannels = numChannels;
-
-	uint32_t sampleRate;
-	fseek(file, SAMPLE_RATE_OFFSET, SEEK_SET);
-	fread(&sampleRate, 1, sizeof(uint32_t), file);
-	pWaveStruct->sampleRate = sampleRate;
-
-	// Get sample size (bit depth) in bits
-	uint16_t sampleSize;
-	fseek(file, SAMPLE_SIZE_OFFSET, SEEK_SET);
-	fread(&sampleSize, 1, sizeof(uint16_t), file);
-
-	// DEBUGGING:
-	 printf("Number of Channels = %d\n", numChannels);
-	 printf("Sample rate = %d\n", sampleRate);
-	 printf("Sample size = %d\n", sampleSize);
-
-	fseek(file, DATA_OFFSET_INTO_WAVE, SEEK_SET);
-	pWaveStruct->numSamples = sizeInBytes * BITS_PER_BYTE / sampleSize;
-
-	// Allocate Space
-	pWaveStruct->pData = malloc(sizeInBytes);
-	if (pWaveStruct->pData == NULL) {
-		fprintf(stderr, "ERROR: Unable to allocate %d bytes for file %s.\n",
-				sizeInBytes, fileName);
-		exit(EXIT_FAILURE);
-	}
-
-	// REVISIT: I believe this is causing a seg fault when playing a wav file of channels 2 and then switching to a wav file of channels 1
-	// Read data:
-	int samplesRead = fread(pWaveStruct->pData, sampleSize / BITS_PER_BYTE, pWaveStruct->numSamples, file);
-	if (samplesRead != pWaveStruct->numSamples) {
-		fprintf(stderr, "ERROR: Unable to read %d samples from file %s (read %d).\n",
-				pWaveStruct->numSamples, fileName, samplesRead);
-		exit(EXIT_FAILURE);
-	}
-
-	fclose(file);
-
-	pthread_mutex_unlock(&audioMutex);
-}
-
-void Audio_freeMusicFileData(wavedata_t *pSound)
-{
-	pthread_mutex_lock(&audioMutex);
-	pSound->numSamples = 0;
-	if (!(pSound->pData)) {
-		free(pSound->pData);
-		pSound->pData = NULL;
-	}
-
-	pthread_mutex_unlock(&audioMutex);
-}
-
-// Queues pSound into soundBites to be played
-// Starts current song timer
-void Audio_queueSound(wavedata_t *pSound)
-{
-	// Ensure we are only being asked to play "good" sounds:
-	if(pSound->numSamples <= 0 || !(pSound->pData)) {
-		return;
-	}
-
-	pthread_mutex_lock(&audioMutex);
-	// Queue up song
-	soundBites[0].pSound = pSound;
-	soundBites[0].location = 0;
-	numChannels_Global = pSound->numChannels;
-	// Configure parameters of PCM output
-	pthread_mutex_lock(&pcmHandleMutex);
-	int err = snd_pcm_drop(handle);
-	if (err < 0) {
-		printf("PCM Drop error: %s\n", snd_strerror(err));
-		exit(EXIT_FAILURE);
-	}
-	err = snd_pcm_set_params(handle,
-			SND_PCM_FORMAT_S16_LE,
-			SND_PCM_ACCESS_RW_INTERLEAVED,
-			pSound->numChannels,
-			pSound->sampleRate,
-			1,			// Allow software resampling
-			50000);		// 0.05 seconds per buffer
-	if (err < 0) {
-		printf("Playback open error: %s\n", snd_strerror(err));
-		exit(EXIT_FAILURE);
-	}
-	err = snd_pcm_prepare(handle);
-	if (err < 0) {
-		printf("PCM Prepare error: %s\n", snd_strerror(err));
-		exit(EXIT_FAILURE);
-	}
-	pthread_mutex_unlock(&pcmHandleMutex);
-
-	// Start Current Song Timer
-	Song_data_startTimer();
-	pthread_mutex_unlock(&audioMutex);
 }
 
 void Audio_cleanup(void)
@@ -258,7 +70,6 @@ void Audio_cleanup(void)
 	// Stop the PCM generation thread
 	stop = true;
 	Audio_setPause(false);
-	pthread_join(playbackThreadId, NULL);
 
 	pthread_mutex_lock(&pcmHandleMutex);
 	// Shutdown the PCM output, allowing any pending sound to play out (drain)
@@ -269,11 +80,6 @@ void Audio_cleanup(void)
 	// Free playback buffer
 	// (note that any wave files read into wavedata_t records must be freed
 	//  in addition to this by calling Audio_freeWaveFileData() on that struct.)
-	free(playbackBuffer);
-	playbackBuffer = NULL;
-	for (int i = 0; i < MAX_SOUND_BITES; i++) {
-		Audio_freeMusicFileData(soundBites[MAX_SOUND_BITES].pSound);
-	}
 	for (int i = 0; i < filenameCount; i++) {
 		free(filenames[i]);
 	}
@@ -282,7 +88,6 @@ void Audio_cleanup(void)
 	printf("Done stopping audio...\n");
 	fflush(stdout);
 }
-
 
 int Audio_getVolume()
 {
@@ -339,80 +144,130 @@ _Bool Audio_getPause(void) {
 	return paused;
 }
 
-// Fill the playbackBuffer array with new PCM values to output.
-//    playbackBuffer: buffer to fill with new PCM data from sound bites.
-//    size: the number of values to store into playbackBuffer
-// Returns true if it is done playing
-static _Bool fillPlaybackBuffer(short *playbackBuffer, int size)
+void Audio_playWAV(char *fileName)
 {
-	pthread_mutex_lock(&audioMutex);
+	// Wave file has 44 bytes of header data. This code assumes file
+	// is correct format.
+	const int DATA_OFFSET_INTO_WAVE = 44;
+	const int WAVE_FIELD_OFFSET = 8;
+	const int NUM_CHANNELS_OFFSET = 22;
+	const int SAMPLE_RATE_OFFSET = 24;
+	const int SAMPLE_SIZE_OFFSET = 34;
 
-	// Wipe the playbackBuffer to all 0's to clear any previous PCM data.
-	memset(playbackBuffer, 0, sizeof(short) * size);
-
-	_Bool donePlaying = false;
-
-	if ( (soundBites[0].pSound != NULL) && (soundBites[0].pSound->numSamples > 0) &&
-			(soundBites[0].location < soundBites[0].pSound->numSamples) ){
-		// Looping through playbackBuffer
-		for (int j = 0; j < size; j++){
-
-			// Adding PCM Samples
-			int offset = playbackBuffer[j];
-			offset = soundBites[0].pSound->pData[soundBites[0].location];
-			
-			// Overflow
-			if ( (offset > 0) && (offset > SHRT_MAX) ){
-				offset = SHRT_MAX;
-			}
-			// Underflow
-			else if ( (offset < 0) && (offset < SHRT_MIN) ){
-				offset = SHRT_MIN;
-			}
-
-			playbackBuffer[j] = offset;
-			soundBites[0].location++;
-
-			// Free soundBite slot if finished playing
-			if (soundBites[0].location >= soundBites[0].pSound->numSamples){
-				// printf("Location: %d\n", soundBites[0].location);
-				// printf("numSamples: %d\n", soundBites[0].pSound->numSamples);
-				soundBites[0].pSound = NULL;
-				soundBites[0].location = 0;
-				donePlaying = true;
-				break;
-			}
-		}
+	// Open file
+	FILE *file = fopen(fileName, "r");
+	if (file == NULL) {
+		fprintf(stderr, "ERROR: Unable to open file %s.\n", fileName);
+		exit(EXIT_FAILURE);
 	}
 
-	pthread_mutex_unlock(&audioMutex);
+	// Check if fileName is a wave file
+	const int fieldSize = 4;
+	char fieldBuff[fieldSize+1];
+	const char waveHeader[] = "WAVE";
+	fseek(file, WAVE_FIELD_OFFSET, SEEK_SET);
+	fread(fieldBuff, fieldSize, sizeof(char), file);
+	fieldBuff[fieldSize] = '\0';
+	if (strcmp(fieldBuff, waveHeader)) {
+		return;
+	}
 
-	return donePlaying;
+	uint16_t numChannels;
+	fseek(file, NUM_CHANNELS_OFFSET, SEEK_SET);
+	fread(&numChannels, 1, sizeof(uint16_t), file);
 
-}
+	uint32_t sampleRate;
+	fseek(file, SAMPLE_RATE_OFFSET, SEEK_SET);
+	fread(&sampleRate, 1, sizeof(uint32_t), file);
 
-void Audio_playMP3(char *fileName, wavedata_t *pSound)
-{
-	mpg123_handle *mh;
-    unsigned char *buffer;
-    size_t buffer_size, done;
-    int mpg123_err, pcm_err, channels, encoding, size, total_bytes;
-    long rate, playback_us;
+	// Get sample size (bit depth) in bits
+	uint16_t sampleSize;
+	fseek(file, SAMPLE_SIZE_OFFSET, SEEK_SET);
+	fread(&sampleSize, 1, sizeof(uint16_t), file);
 
-    mpg123_init();
-    mh = mpg123_new(NULL, &mpg123_err);
-    buffer_size = mpg123_outblock(mh);
-    buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
-	
-    // open the file and get the decoding format
-    mpg123_open(mh, fileName);
-    mpg123_getformat(mh, &rate, &channels, &encoding);
-	size = channels * 16 / 8;
-	total_bytes = (mpg123_length(mh) * size) >> 2;
-	playback_us = ((unsigned long long) total_bytes * 1000000) / rate;
+	// DEBUGGING:
+	printf("Number of Channels = %d\n", numChannels);
+	printf("Sample rate = %d\n", sampleRate);
+	printf("Sample size = %d\n", sampleSize);
 
 	pthread_mutex_lock(&pcmHandleMutex);
-	pcm_err = snd_pcm_drop(handle);
+	int err = snd_pcm_drop(handle);
+	if (err < 0) {
+		printf("PCM Drop error: %s\n", snd_strerror(err));
+		exit(EXIT_FAILURE);
+	}
+	err = snd_pcm_set_params(handle,
+			SND_PCM_FORMAT_S16_LE,
+			SND_PCM_ACCESS_RW_INTERLEAVED,
+			numChannels,
+			sampleRate,
+			1,
+			1000000);	// 1s
+	if (err < 0) {
+		printf("Playback open error: %s\n", snd_strerror(err));
+		exit(EXIT_FAILURE);
+	}
+	err = snd_pcm_prepare(handle);
+	if (err < 0) {
+		printf("PCM Prepare error: %s\n", snd_strerror(err));
+		exit(EXIT_FAILURE);
+	}
+	Song_data_startTimer();
+	pthread_mutex_unlock(&pcmHandleMutex);
+
+	// 1 analog sample is represented with 16 bits = 2 bytes
+	// 1 frame represents 1 analog sample from all channels
+    int frame = numChannels * sampleSize / BITS_PER_BYTE;	
+	// 2 == the number for multiplying period size == recommended buffer size
+	size_t buffer_size = 2 * sampleRate * frame;
+	size_t offset = 0;
+
+	fseek(file, DATA_OFFSET_INTO_WAVE, SEEK_SET);
+	unsigned char *buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+	while (fread(buffer, sizeof(unsigned char), buffer_size, file) == buffer_size) {
+		snd_pcm_sframes_t frames = snd_pcm_writei(handle, buffer, buffer_size/frame);
+
+		if (frames < 0)
+			frames = snd_pcm_recover(handle, frames, 0);
+		if (frames < 0) {
+			fprintf(stderr, "ERROR: Failed writing audio with snd_pcm_writei(): %li\n", frames);
+			exit(EXIT_FAILURE);
+		}
+
+		offset += buffer_size;
+		fseek(file, offset, SEEK_SET);
+	}
+	
+	free(buffer);
+	fclose(file);
+
+	_Bool replay = Song_data_getRepeat();
+	if(replay){
+		Song_data_replay();
+	}
+	else{
+		Song_data_playNext();
+	}
+	loopCount++;
+}
+
+void Audio_playMP3(char *fileName)
+{
+    mpg123_init();
+	int mpg123_err;
+    mpg123_handle *mh = mpg123_new(NULL, &mpg123_err);
+
+    // open the file and get the decoding format
+    mpg123_open(mh, fileName);
+	int numChannels, encoding;
+	long sampleRate;
+    mpg123_getformat(mh, &sampleRate, &numChannels, &encoding);
+	size_t frame = numChannels * 16 / BITS_PER_BYTE;	
+	size_t buffer_size = 2 * sampleRate * frame;
+	unsigned char *buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+
+	pthread_mutex_lock(&pcmHandleMutex);
+	int pcm_err = snd_pcm_drop(handle);
 	if (pcm_err < 0) {
 		printf("PCM Drop error: %s\n", snd_strerror(pcm_err));
 		exit(EXIT_FAILURE);
@@ -420,10 +275,10 @@ void Audio_playMP3(char *fileName, wavedata_t *pSound)
 	pcm_err = snd_pcm_set_params(handle,
 			SND_PCM_FORMAT_S16_LE,
 			SND_PCM_ACCESS_RW_INTERLEAVED,
-			channels,
-			rate,
+			numChannels,
+			sampleRate,
 			1,
-			playback_us);
+			1000000);
 	if (pcm_err < 0) {
 		printf("Playback open error: %s\n", snd_strerror(pcm_err));
 		exit(EXIT_FAILURE);
@@ -433,13 +288,12 @@ void Audio_playMP3(char *fileName, wavedata_t *pSound)
 		printf("PCM Prepare error: %s\n", snd_strerror(pcm_err));
 		exit(EXIT_FAILURE);
 	}
+	Song_data_startTimer();
 	pthread_mutex_unlock(&pcmHandleMutex);
 
+	size_t done;
 	while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK) {
-		// pSound->pData = (short*) buffer;
-		pthread_mutex_lock(&pcmHandleMutex);
-		snd_pcm_sframes_t frames = snd_pcm_writei(handle, buffer, done/size);
-		pthread_mutex_unlock(&pcmHandleMutex);
+		snd_pcm_sframes_t frames = snd_pcm_writei(handle, buffer, done/frame);
 
 		// Check for errors
 		if (frames < 0)
@@ -466,70 +320,3 @@ void Audio_playMP3(char *fileName, wavedata_t *pSound)
 	}
 	loopCount++;
 }
-
-static void* playbackThread(void* arg){
-//	const struct timespec sleepTime = {.tv_nsec = 0, .tv_sec = 15};
-//	nanosleep(&sleepTime, NULL); // give time for sound bites to be queued
-	while (!stop) {
-		if (paused) {
-			pthread_mutex_lock(&audioMutex);
-			pthread_cond_wait(&pauseCond, &audioMutex);
-			pthread_mutex_unlock(&audioMutex);
-		}
-		// Generate next block of audio
-		_Bool donePlaying = fillPlaybackBuffer(playbackBuffer, periodSize * numChannels_Global);
-
-		if(donePlaying){
-			// printf("Song done playing\n");
-			_Bool replay = Song_data_getRepeat();
-
-			if(replay){
-				Song_data_replay();
-			}
-			else{
-				Song_data_playNext();
-			}
-		}
-
-		loopCount++;
-		//printf("loopcount = %lld\n", loopCount);
-		// Output the audio
-
-		pthread_mutex_lock(&pcmHandleMutex);
-		snd_pcm_sframes_t frames = snd_pcm_writei(handle,
-				playbackBuffer, periodSize);
-		pthread_mutex_unlock(&pcmHandleMutex);
-		// Check for (and handle) possible error conditions on output
-		if (frames < 0) {
-			fprintf(stderr, "AudioMixer: writei() returned %li, %s\n", frames, snd_strerror(frames));
-			frames = snd_pcm_recover(handle, frames, 1);
-		}
-		if (frames < 0) {
-			fprintf(stderr, "ERROR: Failed writing audio with snd_pcm_writei(): %li, %s\n",
-					frames, snd_strerror(frames));ESTRPIPE;
-			exit(EXIT_FAILURE);
-		}
-		if (frames > 0 && frames < periodSize) {
-			printf("Short write (expected %li, wrote %li)\n",
-					playbackBufferSize, frames);
-		}
-	}
-
-	return NULL;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

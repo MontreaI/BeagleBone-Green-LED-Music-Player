@@ -5,13 +5,6 @@
 #ifndef AUDIO_MIXER_H
 #define AUDIO_MIXER_H
 
-typedef struct {
-	unsigned int sampleRate;
-	unsigned int numChannels;
-	unsigned int numSamples;
-	short *pData;
-} wavedata_t;
-
 #define AUDIO_MAX_VOLUME 100
 
 extern pthread_mutex_t audioMutex;
@@ -25,12 +18,8 @@ void Audio_cleanup(void);
 // Read the contents of a wave file into the pSound structure. Note that
 // the pData pointer in this structure will be dynamically allocated in
 // readWaveFileIntoMemory(), and is freed by calling freeWaveFileData().
-void Audio_readWaveFileIntoMemory(char *fileName, wavedata_t *pSound);
-void Audio_playMP3(char *fileName, wavedata_t *pSound);
-void Audio_freeMusicFileData(wavedata_t *pSound);
-
-// Queue up another sound bite to play as soon as possible.
-void Audio_queueSound(wavedata_t *pSound);
+void Audio_playWAV(char *fileName);
+void Audio_playMP3(char *fileName);
 
 // Get/set the volume.
 // setVolume() function posted by StackOverflow user "trenki" at:
