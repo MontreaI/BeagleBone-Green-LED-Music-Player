@@ -29,10 +29,10 @@ int main(void)
 	// ledMatrix_song_list(song songList[], int nextSong, int colour); 
 
 	// Play Audio
-	ledMatrix_music_track_display("EXO", 3407667, 0); // someone needs to pass me tiotle of song
-	ledMatrix_music_timer(0, 19, 52326);
-	Song_data_playSong(0);
+	ledMatrix_music_track_display("EXO", 1114197, 0); // someone needs to pass me tiotle of song
+	ledMatrix_music_timer(100, 19, 1114197);
 	ledMatrix_start_music_timer(true);
+	Song_data_playSong(0);
 	// Wait until stop
 	pthread_mutex_lock(&audioMutex);
 	pthread_cond_wait(&stopCond, &audioMutex);

@@ -11,7 +11,7 @@
 #define BB_ADC "BB-ADC"
 #define DATA_PTS_SIZE 10
 #define SLEEP_SEC 1
-#define POLL_SPEED_NS 10000000     // 10ms
+#define POLL_SPEED_NS 100000000     // 100ms
 
 static pthread_mutex_t potMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t potThreadId;

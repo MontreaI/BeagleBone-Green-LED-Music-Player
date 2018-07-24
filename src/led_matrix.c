@@ -402,7 +402,7 @@ void ledMatrix_refresh(void)
         ledMatrix_latch();
         lseek(fileDesc_oe, 0, SEEK_SET);
         write(fileDesc_oe, "0", 1);
-        struct timespec reqDelay = {DELAY_IN_SEC, DELAY_IN_US};
+        struct timespec reqDelay = {0, 1000000};
         nanosleep(&reqDelay, (struct timespec *)NULL);
     }
     return;
@@ -694,10 +694,12 @@ void ledMatrix_music_track_display(char *track, int colour, int rowOffSet)
 
 void ledMatrix_music_timer(int duration, int horizontalOffset, int colour)
 {
+    if (duration >= 600 || duration < 0)
+        duration = 0;
 
-    time_t endwait;
-    time_t start = time(NULL);
-    time_t second = 1; // end loop after this time has elapsed
+    // time_t endwait;
+    // time_t start = time(NULL);
+    // time_t second = 1; // end loop after this time has elapsed
 
     char bufferMinutes[128];
     char bufferSeconds[128];
@@ -749,12 +751,15 @@ void ledMatrix_music_timer(int duration, int horizontalOffset, int colour)
         increment2 += 4;
         }
     }
-    endwait = start + second;
-    while (start < endwait)
-    {
-        ledMatrix_refresh();
-        start = time(NULL);
-    }
+    
+    ledMatrix_refresh();
+    
+    // endwait = start + second;
+    // while (start < endwait)
+    // {
+        // ledMatrix_refresh();
+        // start = time(NULL);
+    // }
     if (horizontalOffset == 0) {
             for (int rows = 7; rows < SCREEN_HEIGHT; rows++)
     {
