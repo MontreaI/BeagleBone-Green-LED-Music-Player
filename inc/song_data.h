@@ -6,11 +6,10 @@
 void Song_data_init();
 void Song_data_cleanup();
 
-void Song_data_playMP3();
-void Song_data_playSong(int index);		// Play song of index
-void Song_data_playPrev();				// Plays previous song
-void Song_data_playNext();				// Plays next song (Depends if shuffle on/off)
-void Song_data_replay();				// Replays current song
+_Bool* Song_data_playSong(int index, pthread_t* pThreadId);		// Play song of index
+_Bool* Song_data_playPrev(pthread_t* pThreadId);				// Plays previous song
+_Bool* Song_data_playNext(pthread_t* pThreadId);				// Plays next song (Depends if shuffle on/off)
+_Bool* Song_data_replay(pthread_t* pThreadId);				// Replays current song
 
 void Song_data_startTimer();			// Start current song timer 
 										// Called by Audio_queueSound

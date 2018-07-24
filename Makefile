@@ -13,7 +13,7 @@ PROJECT_DIR = $(PUBDIR)/cmpt433_proj
 # FLAGS
 CC_C = arm-linux-gnueabihf-gcc
 CFLAGS = -Wall -g -std=c99 -D _POSIX_C_SOURCE=200809L -D _GNU_SOURCE -Werror
-LFLAGS = -L$(HOME)/cmpt433/public/asound_lib_BBB
+LFLAGS = -L$(HOME)/cmpt433/public/asound_lib_BBB -lpthread -lasound -lmpg123 
 
 all: wav player
 
@@ -24,7 +24,7 @@ wav:
 
 # Compiles music player app to the shared folder
 player:
-	$(CC_C) $(CFLAGS) -I inc -o $(PROJECT_DIR)/$(TARGET) $(SOURCES) $(LFLAGS) -lpthread -lasound -lmpg123
+	$(CC_C) $(CFLAGS) -I inc -o $(PROJECT_DIR)/$(TARGET) $(SOURCES) $(LFLAGS) 
 
 # Deletes PROJECT_DIR
 clean:

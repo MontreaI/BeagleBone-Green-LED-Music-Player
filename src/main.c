@@ -13,13 +13,13 @@
 
 int main(void)
 {
-	ledMatrix_init();
-    ledMatrix_splash_screen();
+	//ledMatrix_init();
+    //ledMatrix_splash_screen();
 	// Configure Output Device
-	Audio_init(NUM_CHANNELS, SAMPLE_RATE);
+	Song_data_init();
 	Joystick_init();
 	POT_init();
-	Song_data_init();
+	Audio_init(NUM_CHANNELS, SAMPLE_RATE);
 
 	// Get Song List
 	/*
@@ -29,9 +29,9 @@ int main(void)
 	// ledMatrix_song_list(song songList[], int nextSong, int colour); 
 
 	// Play Audio
-	ledMatrix_music_track_display("EXO", 1114197, 0); // someone needs to pass me tiotle of song
-	ledMatrix_music_timer(100, 19, 1114197);
-	ledMatrix_start_music_timer(true);
+	//ledMatrix_music_track_display("EXO", 1114197, 0); // someone needs to pass me tiotle of song
+	//ledMatrix_music_timer(100, 19, 1114197);
+	//ledMatrix_start_music_timer(true);
 	// Wait until stop
 	pthread_mutex_lock(&audioMutex);
 	pthread_cond_wait(&stopCond, &audioMutex);

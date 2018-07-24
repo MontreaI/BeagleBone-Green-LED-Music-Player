@@ -86,14 +86,6 @@ void Audio_cleanup(void)
 	snd_pcm_close(handle);
 	pthread_mutex_unlock(&pcmHandleMutex);
 
-	// Free playback buffer
-	// (note that any wave files read into wavedata_t records must be freed
-	//  in addition to this by calling Audio_freeWaveFileData() on that struct.)
-	for (int i = 0; i < filenameCount; i++) {
-		free(filenames[i]);
-	}
-	free(filenames);
-
 	printf("Done stopping audio...\n");
 	fflush(stdout);
 }
@@ -161,7 +153,7 @@ void Audio_setJoystickInput(Joystick_Input input) {
 
 void* Audio_playWAV(void* ptr)
 {
-	Audio_threadInput* input = (Audio_threadInput*) ptr;
+	Audio_threadInput* pInput = (Audio_threadInput*) ptr;
 
 	// Wave file has 44 bytes of header data. This code assumes file
 	// is correct format.
@@ -172,9 +164,9 @@ void* Audio_playWAV(void* ptr)
 	const int SAMPLE_SIZE_OFFSET = 34;
 
 	// Open file
-	FILE *file = fopen(input->filename, "r");
+	FILE *file = fopen(pInput->filename, "r");
 	if (file == NULL) {
-		fprintf(stderr, "ERROR: Unable to open file %s.\n", input->filename);
+		fprintf(stderr, "Audio: ERROR: Unable to open file %s.\n", pInput->filename);
 		exit(EXIT_FAILURE);
 	}
 
@@ -186,7 +178,7 @@ void* Audio_playWAV(void* ptr)
 	fread(fieldBuff, fieldSize, sizeof(char), file);
 	fieldBuff[fieldSize] = '\0';
 	if (strcmp(fieldBuff, waveHeader)) {
-		return;
+		return NULL;
 	}
 
 	uint16_t numChannels;
@@ -213,13 +205,15 @@ void* Audio_playWAV(void* ptr)
 		printf("PCM Drop error: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
 	}
+
+	const int MODIFIER = 1000;
 	err = snd_pcm_set_params(handle,
 			SND_PCM_FORMAT_S16_LE,
 			SND_PCM_ACCESS_RW_INTERLEAVED,
 			numChannels,
 			sampleRate,
 			1,
-			1000000);	// 1s
+			500000);	// 0.5s
 	if (err < 0) {
 		printf("Playback open error: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
@@ -234,14 +228,20 @@ void* Audio_playWAV(void* ptr)
 
 	// 1 analog sample is represented with 16 bits = 2 bytes
 	// 1 frame represents 1 analog sample from all channels
-    int frame = numChannels * sampleSize / BITS_PER_BYTE;	
+    int frame = numChannels * sampleSize / BITS_PER_BYTE;
 	// 2 == the number for multiplying period size == recommended buffer size
-	size_t buffer_size = 2 * sampleRate * frame;
+	size_t buffer_size = 2 * sampleRate * frame / MODIFIER;
 	size_t offset = 0;
 
+	unsigned long playbackBufferSize = 0;
+	unsigned long unusedBufferSize = 0;
+	snd_pcm_get_params(handle, &unusedBufferSize, &playbackBufferSize);
+	// ..allocate playback buffer:
+	unsigned char *buffer = malloc(playbackBufferSize * frame);
+
 	fseek(file, DATA_OFFSET_INTO_WAVE, SEEK_SET);
-	unsigned char *buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
-	while (!*(input->pStop) && fread(buffer, sizeof(unsigned char), buffer_size, file) == buffer_size) {
+	//unsigned char *buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+	while (!*(pInput->pStop) && fread(buffer, sizeof(unsigned char), buffer_size, file) == buffer_size) {
 		snd_pcm_sframes_t frames = snd_pcm_writei(handle, buffer, buffer_size/frame);
 
 		if (frames < 0)
@@ -258,26 +258,35 @@ void* Audio_playWAV(void* ptr)
 	free(buffer);
 	fclose(file);
 
+    free(pInput);
 	pthread_cond_signal(&audioMainCond);
 	return NULL;
 }
 
 void* Audio_playMP3(void *ptr)
 {
-	Audio_threadInput* input = (Audio_threadInput*) ptr;
+	Audio_threadInput* pInput = (Audio_threadInput*) ptr;
 
     mpg123_init();
 	int mpg123_err;
     mpg123_handle *mh = mpg123_new(NULL, &mpg123_err);
 
     // open the file and get the decoding format
-    mpg123_open(mh, input->filename);
+    mpg123_open(mh, pInput->filename);
 	int numChannels, encoding;
 	long sampleRate;
     mpg123_getformat(mh, &sampleRate, &numChannels, &encoding);
 	size_t frame = numChannels * 16 / BITS_PER_BYTE;	
-	size_t buffer_size = 2 * sampleRate * frame;
-	unsigned char *buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+	const int MODIFIER = 1000;
+	size_t buffer_size = 2 * sampleRate * frame / MODIFIER;
+	//unsigned char *buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+
+
+	unsigned long playbackBufferSize = 0;
+	unsigned long unusedBufferSize = 0;
+	snd_pcm_get_params(handle, &unusedBufferSize, &playbackBufferSize);
+	// ..allocate playback buffer:
+	unsigned char *buffer = malloc(playbackBufferSize * frame);
 
 	pthread_mutex_lock(&pcmHandleMutex);
 	int pcm_err = snd_pcm_drop(handle);
@@ -291,7 +300,7 @@ void* Audio_playMP3(void *ptr)
 			numChannels,
 			sampleRate,
 			1,
-			1000000);
+			500000); // 0.5s
 	if (pcm_err < 0) {
 		printf("Playback open error: %s\n", snd_strerror(pcm_err));
 		exit(EXIT_FAILURE);
@@ -305,7 +314,7 @@ void* Audio_playMP3(void *ptr)
 	pthread_mutex_unlock(&pcmHandleMutex);
 
 	size_t done;
-	while (!*(input->pStop) && mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK) {
+	while (!*(pInput->pStop) && mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK) {
 		snd_pcm_sframes_t frames = snd_pcm_writei(handle, buffer, done/frame);
 
 		// Check for errors
@@ -324,6 +333,7 @@ void* Audio_playMP3(void *ptr)
     mpg123_delete(mh);
     mpg123_exit();
 
+    free(pInput);
 	pthread_cond_signal(&audioMainCond);
 	return NULL;
 }
@@ -338,6 +348,7 @@ static void* audioThread(void *ptr) {
 		pthread_cond_wait(&audioMainCond ,&threadMutex);
 		pthread_mutex_unlock(&threadMutex);
 
+		*pStop = true;
     	pthread_join(threadId, NULL);
 		free(pStop);
 
@@ -346,27 +357,29 @@ static void* audioThread(void *ptr) {
 			joystickInputFlag = false;
 			switch(joystickInput) {
 				case JOYSTICK_RIGHT:
-                    Song_data_playNext();
+                    pStop = Song_data_playNext(&threadId);
                     break;
                 case JOYSTICK_LEFT:
+				{
                 	int playTime = Song_data_getTimer();
 
                     if (playTime < SECONDS_FOR_REPLAY) {
-                    	pStop = Song_data_playPrev();
+                    	pStop = Song_data_playPrev(&threadId);
                     }
                     else{
-                    	pStop = Song_data_replay();
+                    	pStop = Song_data_replay(&threadId);
                     }
+				}
 			}
 		}
 		// Song ended naturally
 		else {
 			_Bool replay = Song_data_getRepeat();
 			if(replay){
-				pStop = Song_data_replay(&thread);
+				pStop = Song_data_replay(&threadId);
 			}
 			else{
-				pStop = Song_data_playNext(&thread);
+				pStop = Song_data_playNext(&threadId);
 			}
 		}
 	}

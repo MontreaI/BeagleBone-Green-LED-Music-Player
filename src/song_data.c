@@ -104,28 +104,29 @@ _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 
 	printf("Playing: %s\n", songBuffer[currentSong]);
 	// Audio_setPause(true);
-	Audio_threadInput input = {.filename = songBuffer[currentSong],
-							.stop = malloc(sizeof(_Bool))};
+	Audio_threadInput* pInput = malloc(sizeof(Audio_threadInput));
+	pInput->filename = songBuffer[currentSong];
+	pInput->pStop = malloc(sizeof(_Bool));
 	if (strcmp(&songBuffer[currentSong][len-3], "wav") == 0) {
-		if (pthread_create(pThreadId, &input, Audio_playWAV, NULL))
+		if (pthread_create(pThreadId, NULL, Audio_playWAV, pInput))
         	printf("ERROR cannot create a new audio playback thread");
 	}
 	if (strcmp(&songBuffer[currentSong][len-3], "mp3") == 0) {
-		if (pthread_create(pThreadId, &input, Audio_playMP3, NULL))
+		if (pthread_create(pThreadId, NULL, Audio_playMP3, pInput))
         	printf("ERROR cannot create a new audio playback thread");
 	}
-	return input.stop;
+	return pInput->pStop;
 	// Audio_setPause(false);
 }
 
 // Replay Current Song
-_Bool* Song_data_replay(pthread_t* pThread){
+_Bool* Song_data_replay(pthread_t* pThreadId){
 	printf("Replaying: %s\n", songBuffer[currentSong]);
-	return Song_data_playSong(currentSong, pThread);
+	return Song_data_playSong(currentSong, pThreadId);
 }
 
 // Play Previous Song
-_Bool* Song_data_playPrev(pthread_t* pThread){
+_Bool* Song_data_playPrev(pthread_t* pThreadId){
 	// SHUFFLE ON
 	if (shuffle){
 		// play previous shuffled song
@@ -133,8 +134,7 @@ _Bool* Song_data_playPrev(pthread_t* pThread){
 
 		// Empty Stack
 		if(poppedSong == -1){
-			Song_data_replay();
-			return;
+			return Song_data_replay(pThreadId);
 		}
 		else{
 			currentSong = poppedSong;
@@ -154,11 +154,11 @@ _Bool* Song_data_playPrev(pthread_t* pThread){
 	}
 
 	printf("Playing Prev %d: %s\n", currentSong, songBuffer[currentSong]);
-	return Song_data_playSong(currentSong, pThread);
+	return Song_data_playSong(currentSong, pThreadId);
 }
 
 // Play Next Song
-_Bool* Song_data_playNext(pthread_t* pThread){
+_Bool* Song_data_playNext(pthread_t* pThreadId){
 
 	// SHUFFLE ON
 	if (shuffle){
@@ -182,7 +182,7 @@ _Bool* Song_data_playNext(pthread_t* pThread){
 	}
 
 	printf("Playing Next %d: %s\n", currentSong, songBuffer[currentSong]);
-	return Song_data_playSong(currentSong, pThread);
+	return Song_data_playSong(currentSong, pThreadId);
 }
 
 // Allocates and returns array containing names of files in dirName

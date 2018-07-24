@@ -1,5 +1,7 @@
 // Methods relating to audio playback
 
+#include "joystick.h"
+
 // Playback sounds in real time, allowing multiple simultaneous wave files
 // to be mixed together and played without jitter.
 #ifndef AUDIO_MIXER_H
@@ -23,7 +25,7 @@ void Audio_cleanup(void);
 // Playback thread functions for wav/mp3.
 // ptr must point to an Audio_threadInput
 void* Audio_playWAV(void* ptr);
-void* Audio_playMP3(void* ptr)
+void* Audio_playMP3(void* ptr);
 
 // Get/set the volume.
 // setVolume() function posted by StackOverflow user "trenki" at:
@@ -36,6 +38,6 @@ void Audio_setPause(_Bool newVal);
 _Bool Audio_getPause(void);
 
 // Alerts the main thread to new joystick input
-void Audio_setJoystickInput(Audio_Joystick_Input input);
+void Audio_setJoystickInput(Joystick_Input input);
 
 #endif
