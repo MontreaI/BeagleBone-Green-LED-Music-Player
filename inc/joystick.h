@@ -5,6 +5,11 @@
 #ifndef JOYSTICK_H
 #define JOYSTICK_H
 
+typedef enum {
+	JOYSTICK_LEFT,
+	JOYSTICK_RIGHT
+} Joystick_Input;
+
 void Joystick_init();
 void Joystick_cleanup();
 

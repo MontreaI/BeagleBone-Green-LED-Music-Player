@@ -96,30 +96,36 @@ void Song_data_toggleShuffle(){
 }
 
 // Plays song at index
-void Song_data_playSong(int index){
+// Outputs the id of the playback thread at pThreadId (on heap!)
+// Returns pointer to stop the current audio playback thread
+_Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 	currentSong = index;
 	int len = strlen(songBuffer[currentSong]);
 
 	printf("Playing: %s\n", songBuffer[currentSong]);
 	// Audio_setPause(true);
+	Audio_threadInput input = {.filename = songBuffer[currentSong],
+							.stop = malloc(sizeof(_Bool))};
 	if (strcmp(&songBuffer[currentSong][len-3], "wav") == 0) {
-		Audio_playWAV(songBuffer[currentSong]);
+		if (pthread_create(pThreadId, &input, Audio_playWAV, NULL))
+        	printf("ERROR cannot create a new audio playback thread");
 	}
 	if (strcmp(&songBuffer[currentSong][len-3], "mp3") == 0) {
-		Audio_playMP3(songBuffer[currentSong]);
+		if (pthread_create(pThreadId, &input, Audio_playMP3, NULL))
+        	printf("ERROR cannot create a new audio playback thread");
 	}
+	return input.stop;
 	// Audio_setPause(false);
 }
 
 // Replay Current Song
-void Song_data_replay(){
+_Bool* Song_data_replay(pthread_t* pThread){
 	printf("Replaying: %s\n", songBuffer[currentSong]);
-
-	Song_data_playSong(currentSong);
+	return Song_data_playSong(currentSong, pThread);
 }
 
 // Play Previous Song
-void Song_data_playPrev(){
+_Bool* Song_data_playPrev(pthread_t* pThread){
 	// SHUFFLE ON
 	if (shuffle){
 		// play previous shuffled song
@@ -148,11 +154,11 @@ void Song_data_playPrev(){
 	}
 
 	printf("Playing Prev %d: %s\n", currentSong, songBuffer[currentSong]);
-	Song_data_playSong(currentSong);
+	return Song_data_playSong(currentSong, pThread);
 }
 
 // Play Next Song
-void Song_data_playNext(){
+_Bool* Song_data_playNext(pthread_t* pThread){
 
 	// SHUFFLE ON
 	if (shuffle){
@@ -176,7 +182,7 @@ void Song_data_playNext(){
 	}
 
 	printf("Playing Next %d: %s\n", currentSong, songBuffer[currentSong]);
-	Song_data_playSong(currentSong);
+	return Song_data_playSong(currentSong, pThread);
 }
 
 // Allocates and returns array containing names of files in dirName

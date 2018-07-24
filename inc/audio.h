@@ -10,16 +10,20 @@
 extern pthread_mutex_t audioMutex;
 extern pthread_cond_t stopCond;
 
+typedef struct {
+	char* filename;
+	_Bool* pStop;
+} Audio_threadInput;
+
 // init() must be called before any other functions,
 // cleanup() must be called last to stop playback threads and free memory.
 void Audio_init(unsigned int numChannels, unsigned int sampleRate);
 void Audio_cleanup(void);
 
-// Read the contents of a wave file into the pSound structure. Note that
-// the pData pointer in this structure will be dynamically allocated in
-// readWaveFileIntoMemory(), and is freed by calling freeWaveFileData().
-void Audio_playWAV(char *fileName);
-void Audio_playMP3(char *fileName);
+// Playback thread functions for wav/mp3.
+// ptr must point to an Audio_threadInput
+void* Audio_playWAV(void* ptr);
+void* Audio_playMP3(void* ptr)
 
 // Get/set the volume.
 // setVolume() function posted by StackOverflow user "trenki" at:
@@ -30,5 +34,8 @@ void Audio_setVolume(int newVolume);
 // Pause/start audio playback.
 void Audio_setPause(_Bool newVal);
 _Bool Audio_getPause(void);
+
+// Alerts the main thread to new joystick input
+void Audio_setJoystickInput(Audio_Joystick_Input input);
 
 #endif

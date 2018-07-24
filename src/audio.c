@@ -21,19 +21,26 @@ static snd_pcm_t *handle;
 #define DEFAULT_VOLUME 80
 #define BITS_PER_BYTE 8
 
-static long long loopCount = 0;
-static char** filenames = NULL;;
-static int filenameCount = 0;
+#define SECONDS_FOR_REPLAY 2
+
+// Static function
+static void* audioThread(void *ptr);
 
 // Playback threadin
 static _Bool stop = false;
 static _Bool paused = false;
 pthread_mutex_t audioMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t threadMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t pauseCond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t audioMainCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t pcmHandleMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t audioThreadId;
 
 static int volume = 0;
+
+static int joystickInputFlag = false;
+static Joystick_Input joystickInput;
 
 void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 {
@@ -61,6 +68,8 @@ void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 		exit(EXIT_FAILURE);
 	}
 	pthread_mutex_unlock(&pcmHandleMutex);
+	if (pthread_create(&audioThreadId, NULL, audioThread, NULL))
+        printf("ERROR cannot create a new Audio thread");
 }
 
 void Audio_cleanup(void)
@@ -144,8 +153,16 @@ _Bool Audio_getPause(void) {
 	return paused;
 }
 
-void Audio_playWAV(char *fileName)
+void Audio_setJoystickInput(Joystick_Input input) {
+	joystickInputFlag = true;
+	joystickInput = input;
+	pthread_cond_signal(&audioMainCond);
+}
+
+void* Audio_playWAV(void* ptr)
 {
+	Audio_threadInput* input = (Audio_threadInput*) ptr;
+
 	// Wave file has 44 bytes of header data. This code assumes file
 	// is correct format.
 	const int DATA_OFFSET_INTO_WAVE = 44;
@@ -155,9 +172,9 @@ void Audio_playWAV(char *fileName)
 	const int SAMPLE_SIZE_OFFSET = 34;
 
 	// Open file
-	FILE *file = fopen(fileName, "r");
+	FILE *file = fopen(input->filename, "r");
 	if (file == NULL) {
-		fprintf(stderr, "ERROR: Unable to open file %s.\n", fileName);
+		fprintf(stderr, "ERROR: Unable to open file %s.\n", input->filename);
 		exit(EXIT_FAILURE);
 	}
 
@@ -224,7 +241,7 @@ void Audio_playWAV(char *fileName)
 
 	fseek(file, DATA_OFFSET_INTO_WAVE, SEEK_SET);
 	unsigned char *buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
-	while (fread(buffer, sizeof(unsigned char), buffer_size, file) == buffer_size) {
+	while (!*(input->pStop) && fread(buffer, sizeof(unsigned char), buffer_size, file) == buffer_size) {
 		snd_pcm_sframes_t frames = snd_pcm_writei(handle, buffer, buffer_size/frame);
 
 		if (frames < 0)
@@ -241,24 +258,20 @@ void Audio_playWAV(char *fileName)
 	free(buffer);
 	fclose(file);
 
-	_Bool replay = Song_data_getRepeat();
-	if(replay){
-		Song_data_replay();
-	}
-	else{
-		Song_data_playNext();
-	}
-	loopCount++;
+	pthread_cond_signal(&audioMainCond);
+	return NULL;
 }
 
-void Audio_playMP3(char *fileName)
+void* Audio_playMP3(void *ptr)
 {
+	Audio_threadInput* input = (Audio_threadInput*) ptr;
+
     mpg123_init();
 	int mpg123_err;
     mpg123_handle *mh = mpg123_new(NULL, &mpg123_err);
 
     // open the file and get the decoding format
-    mpg123_open(mh, fileName);
+    mpg123_open(mh, input->filename);
 	int numChannels, encoding;
 	long sampleRate;
     mpg123_getformat(mh, &sampleRate, &numChannels, &encoding);
@@ -292,7 +305,7 @@ void Audio_playMP3(char *fileName)
 	pthread_mutex_unlock(&pcmHandleMutex);
 
 	size_t done;
-	while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK) {
+	while (!*(input->pStop) && mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK) {
 		snd_pcm_sframes_t frames = snd_pcm_writei(handle, buffer, done/frame);
 
 		// Check for errors
@@ -311,12 +324,51 @@ void Audio_playMP3(char *fileName)
     mpg123_delete(mh);
     mpg123_exit();
 
-	_Bool replay = Song_data_getRepeat();
-	if(replay){
-		Song_data_replay();
+	pthread_cond_signal(&audioMainCond);
+	return NULL;
+}
+
+static void* audioThread(void *ptr) {
+
+	pthread_t threadId;
+	_Bool* pStop = Song_data_playSong(0, &threadId);
+	while(true) {
+		//sleep
+		pthread_mutex_lock(&threadMutex);
+		pthread_cond_wait(&audioMainCond ,&threadMutex);
+		pthread_mutex_unlock(&threadMutex);
+
+    	pthread_join(threadId, NULL);
+		free(pStop);
+
+		// Joystick triggered signal
+		if (joystickInputFlag) {
+			joystickInputFlag = false;
+			switch(joystickInput) {
+				case JOYSTICK_RIGHT:
+                    Song_data_playNext();
+                    break;
+                case JOYSTICK_LEFT:
+                	int playTime = Song_data_getTimer();
+
+                    if (playTime < SECONDS_FOR_REPLAY) {
+                    	pStop = Song_data_playPrev();
+                    }
+                    else{
+                    	pStop = Song_data_replay();
+                    }
+			}
+		}
+		// Song ended naturally
+		else {
+			_Bool replay = Song_data_getRepeat();
+			if(replay){
+				pStop = Song_data_replay(&thread);
+			}
+			else{
+				pStop = Song_data_playNext(&thread);
+			}
+		}
 	}
-	else{
-		Song_data_playNext();
-	}
-	loopCount++;
+	return NULL;
 }

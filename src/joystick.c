@@ -16,8 +16,6 @@
 #define LEFT 65
 #define IN 27
 
-#define SECONDS_FOR_REPLAY 2
-
 static pthread_t joystickThreadId;
 static pthread_mutex_t joystickMutex = PTHREAD_MUTEX_INITIALIZER;
 static _Bool stopping = false;
@@ -76,7 +74,7 @@ static void* Joystick_thread(void* arg){
                 pthread_mutex_lock(&joystickMutex);
                 {
                     printf("RIGHT\n");
-                    Song_data_playNext();
+                    Audio_setJoystickInput(JOYSTICK_RIGHT);
                     nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
                 }
                 pthread_mutex_unlock(&joystickMutex);
@@ -86,14 +84,8 @@ static void* Joystick_thread(void* arg){
                 pthread_mutex_lock(&joystickMutex);
                 {
                     printf("LEFT\n");
-                    int playTime = Song_data_getTimer();
+                    Audio_setJoystickInput(JOYSTICK_LEFT);
 
-                    if (playTime < SECONDS_FOR_REPLAY){
-                        Song_data_playPrev();
-                    }
-                    else{
-                        Song_data_replay();
-                    }
                     nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
                 }
                 pthread_mutex_unlock(&joystickMutex);
