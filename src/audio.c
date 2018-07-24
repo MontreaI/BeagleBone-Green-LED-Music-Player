@@ -213,7 +213,7 @@ void* Audio_playWAV(void* ptr)
 			numChannels,
 			sampleRate,
 			1,
-			500000);	// 0.5s
+			1000000);	// 1s
 	if (err < 0) {
 		printf("Playback open error: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
@@ -300,7 +300,7 @@ void* Audio_playMP3(void *ptr)
 			numChannels,
 			sampleRate,
 			1,
-			500000); // 0.5s
+			1000000); // 1s
 	if (pcm_err < 0) {
 		printf("Playback open error: %s\n", snd_strerror(pcm_err));
 		exit(EXIT_FAILURE);
