@@ -5,6 +5,9 @@
 #include <pthread.h>
 #include <time.h>
 #include <stdbool.h>
+#include <mpg123.h>
+#include <math.h>
+#include <stdint.h>
 
 #include "audio.h"
 #include "stack.h"
@@ -20,10 +23,10 @@
  ******************************************************************************/
 struct SongData{
 	char* songDir;					// Directory to Song 
+	char* songName;				
+	char* artist;
+	int duration;
 	_Bool isWav;					// True = wav, False = mp3
-	// char* songName;				
-// 	char artist[32];
-// 	int duration;
 };
 
 // Song buffer of SongData objects
@@ -58,27 +61,27 @@ void Song_data_init(){
 	dirLen = strlen(SONG_DIR);		// Obtain directory length
 
 	// // Sort songBuffer
-	// for (size_t i = 0; i < songBufferSize - 1; i++){
-	// 	int minimum = i;
-	// 	for (size_t j = i + 1; j < songBufferSize; j++){
-	// 		if(strcmp(songBuffer[j].songDir, songBuffer[minimum].songDir) < 0){
-	// 			minimum = j;
-	// 		}
-	// 	}
+	for (size_t i = 0; i < songBufferSize - 1; i++){
+		int minimum = i;
+		for (size_t j = i + 1; j < songBufferSize; j++){
+			if(strcmp(songBuffer[j].songDir, songBuffer[minimum].songDir) < 0){
+				minimum = j;
+			}
+		}
 
-	// 	// Swap
-	// 	struct SongData temp = songBuffer[i];
-	// 	songBuffer[i] = songBuffer[minimum];
-	// 	songBuffer[minimum] = temp;
-	// }
+		// Swap
+		struct SongData temp = songBuffer[i];
+		songBuffer[i] = songBuffer[minimum];
+		songBuffer[minimum] = temp;
+	}
 
 	printf("\nsongBufferSize: %d\n", songBufferSize);
 
 	// DEBUGGING:
-	for(size_t i = 0; i < songBufferSize; i++)
-	{
-		printf("%s\n", songBuffer[i].songDir);
-	}
+	// for(size_t i = 0; i < songBufferSize; i++)
+	// {
+	// 	printf("%s\n", songBuffer[i].songDir);
+	// }
 }
 
 // Starts timer of how long current song is playing
@@ -248,7 +251,98 @@ static void getMetaData(char *dirName, int* pFilenameCount){
 				strcat(songDir, currEntity->d_name);
 				strcpy(songBuffer[i].songDir, songDir);
 
-				/* Get SongName */
+				// TODO: Refactor BELOW into functions to gather metadata for mp3 & wav
+				int len = strlen(songBuffer[i].songDir);
+
+				/* Get MP3 Metadata */
+				// if (strcmp(&songBuffer[i].songDir[len-3], "mp3") == 0) {
+
+				// 	/* mpg123 setup */
+				//   	mpg123_init();
+				//     mpg123_handle *mh = mpg123_new(NULL, NULL);
+				//     mpg123_open(mh, songBuffer[i].songDir);
+				// 	mpg123_scan(mh);
+
+				// 	mpg123_id3v1 *v1;
+				// 	mpg123_id3v2 *v2;
+				// 	/* mpg123 setup */
+
+				// 	// isWav
+				// 	songBuffer[i].isWav = false;
+
+				// 	// Get Song Duration
+				// 	off_t samples = mpg123_length(mh);			// Get total samples
+				// 	int frameDuration = mpg123_spf(mh);			// Get # samples in 1 frame
+				// 	double seconds = mpg123_tpf(mh);			// Get # seconds in 1 frame
+				// 	int songDuration = ceil((samples / frameDuration) * seconds);
+				// 	songBuffer[i].duration = songDuration;
+
+				// 	// Get Song Name + Artist
+				// 	char* title = NULL;
+				// 	char* artist = NULL;
+				// 	if(mpg123_meta_check(mh) & MPG123_ID3 && mpg123_id3(mh, &v1, &v2) == MPG123_OK){
+				// 		if(v2 != NULL){
+				// 			title = v2->title->p;
+				// 			songBuffer[i].songName = title;
+
+				// 			artist = v2->artist->p;
+				// 			songBuffer[i].artist = artist;
+				// 		}
+				// 		else if(v1 != NULL) {
+				// 			songBuffer[i].songName = v1->title;
+				// 			songBuffer[i].artist = v1->artist;
+				// 		}
+				// 	}
+				// 	mpg123_delete(mh);
+				// 	mpg123_exit();
+				// }
+
+				/* Get WAV Metadata */
+				if (strcmp(&songBuffer[i].songDir[len-3], "wav") == 0){
+					// isWav
+					songBuffer[i].isWav = true;
+
+					// Get Song Duration
+					{
+						const int NUM_CHANNELS_OFFSET = 22;
+						const int SAMPLE_RATE_OFFSET = 24;
+						const int SAMPLE_SIZE_OFFSET = 34;
+
+						FILE *file = fopen(songBuffer[i].songDir, "r");
+						if (file == NULL) {
+							fprintf(stderr, "Audio: ERROR: Unable to open file %s.\n", songBuffer[i].songDir);
+							exit(EXIT_FAILURE);
+						}
+
+						fseek(file, 0, SEEK_END);
+						int file_size = ftell(file);
+
+						uint16_t numChannels;
+						fseek(file, NUM_CHANNELS_OFFSET, SEEK_SET);
+						fread(&numChannels, 1, sizeof(uint16_t), file);
+
+						uint32_t sampleRate;
+						fseek(file, SAMPLE_RATE_OFFSET, SEEK_SET);
+						fread(&sampleRate, 1, sizeof(uint32_t), file);
+
+						// Get sample size (bit depth) in bits
+						uint16_t sampleSize;
+						fseek(file, SAMPLE_SIZE_OFFSET, SEEK_SET);
+						fread(&sampleSize, 1, sizeof(uint16_t), file);
+
+						// FORMULA = (File Size) / (Sample Rate) / (Sample Size) / (Number Channels) * 8
+						int total = ceil((float)file_size / (float)sampleRate / (float)sampleSize / (float)numChannels * 8);
+						songBuffer[i].duration = total;
+					}
+
+					// Get Artist
+					char* token = strtok(currEntity->d_name, "-");
+					songBuffer[i].artist = token;
+
+					// Get Song Name
+					token = strtok(NULL, "-");
+					songBuffer[i].songName = token + 1;
+				}
 
 				i++;		
 			}
@@ -260,12 +354,3 @@ static void getMetaData(char *dirName, int* pFilenameCount){
 		*pFilenameCount = i;
 	}
 }
-
-// Places song name into songName
-// Index is the index of the current song playing
-// static void getSongName(char* songName, int index){
-// 	int len = strlen(songBuffer[currentSong]);
-// 	strncpy(songName, songBuffer[currentSong] + dirLen, len - dirLen - 4);
-// 	songName[len - dirLen - 4] = 0;
-// 	ledMatrix_music_track_display(songName, 1114197, 0);
-// }

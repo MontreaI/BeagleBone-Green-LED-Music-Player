@@ -23,3 +23,6 @@
 ## Note:
 
 I am doing it this way because it plays nicely with the structure we have now; it can pause, run, switch songs (not when it's decoding tho), etc. If I were to use other libraries to play the song, then I need to implement the whole structure again just for <code>mp3</code>, and most importantly, I need to fight with <code>pcm</code> handler to get the permission of using the default sound output device.
+
+Sources Used:
+https://www.mpg123.de/api/id3dump_8c_source.shtml

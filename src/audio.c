@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <alloca.h> // needed for mixer
 #include <time.h>
+#include <math.h>
 
 #include "audio.h"
 #include "joystick.h"
@@ -170,6 +171,10 @@ void* Audio_playWAV(void* ptr)
 		exit(EXIT_FAILURE);
 	}
 
+	fseek(file, 0, SEEK_END);
+	int file_size = ftell(file);
+	printf("File size: %d\n", file_size);
+
 	// Check if fileName is a wave file
 	const int fieldSize = 4;
 	char fieldBuff[fieldSize+1];
@@ -198,6 +203,9 @@ void* Audio_playWAV(void* ptr)
 	// printf("Number of Channels = %d\n", numChannels);
 	// printf("Sample rate = %d\n", sampleRate);
 	// printf("Sample size = %d\n", sampleSize);
+	// FORMULA = (File Size) / (Sample Rate) / (Sample Size) / (Number Channels) * 8
+	int total = ceil((float)file_size / (float)sampleRate / (float)sampleSize / (float)numChannels * 8);
+	printf("Total Duration: %d\n", total);
 
 	pthread_mutex_lock(&pcmHandleMutex);
 	int err = snd_pcm_drop(handle);
