@@ -342,7 +342,7 @@ static void* audioThread(void *ptr) {
 
 	pthread_t threadId;
 	
-	_Bool* pStop = Song_data_playSong(17, &threadId);
+	_Bool* pStop = Song_data_playSong(0, &threadId);
 
 	while(true) {
 		//sleep
