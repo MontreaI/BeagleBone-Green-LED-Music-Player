@@ -605,7 +605,7 @@ int ledMatrix_music_details(char *track, int colour, int rowOffSet)
     }
     else
     {
-        int offset = (abs(SCREEN_WIDTH - (strlen(track) + (strlen(track) * 3))) / 2);
+        int offset = 0;//(abs(SCREEN_WIDTH - (strlen(track) + (strlen(track) * 3))) / 2);
         for (int j = 0; j < strlen(track); j++)
         {
             if (ledTrack[increment] == NULL)

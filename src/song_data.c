@@ -18,6 +18,9 @@
 *****************************************************************************/
 #define SONG_DIR "wave-files/"		// Song directory
 
+#define DEFAULT_ROW_OFFSET 0
+#define DEFAULT_HORIZONTAL_OFFSET 19
+
 /******************************************************************************
  **              GLOBAL VARIABLES
  ******************************************************************************/
@@ -128,7 +131,9 @@ _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 
 	int len = strlen(songBuffer[currentSong].songDir);
 
-	printf("Playing: %s\n", songBuffer[currentSong].songDir);
+	printf("Playing: %s\n", songBuffer[currentSong].songName);
+	ledMatrix_music_track_display(songBuffer[currentSong].songName, 1114197, DEFAULT_ROW_OFFSET);
+	ledMatrix_music_timer(songBuffer[currentSong].duration, 1114197, DEFAULT_HORIZONTAL_OFFSET);
 
 	/* Updating the ledDisplay for Song Name */
 	// char* songName = (char*) malloc(len - dirLen - 3);
@@ -255,47 +260,53 @@ static void getMetaData(char *dirName, int* pFilenameCount){
 				int len = strlen(songBuffer[i].songDir);
 
 				/* Get MP3 Metadata */
-				// if (strcmp(&songBuffer[i].songDir[len-3], "mp3") == 0) {
+				if (strcmp(&songBuffer[i].songDir[len-3], "mp3") == 0) {
 
-				// 	/* mpg123 setup */
-				//   	mpg123_init();
-				//     mpg123_handle *mh = mpg123_new(NULL, NULL);
-				//     mpg123_open(mh, songBuffer[i].songDir);
-				// 	mpg123_scan(mh);
+					/* mpg123 setup */
+				  	mpg123_init();
+				    mpg123_handle *mh = mpg123_new(NULL, NULL);
+				    mpg123_open(mh, songBuffer[i].songDir);
+					mpg123_scan(mh);
 
-				// 	mpg123_id3v1 *v1;
-				// 	mpg123_id3v2 *v2;
-				// 	/* mpg123 setup */
+					mpg123_id3v1 *v1;
+					mpg123_id3v2 *v2;
+					/* mpg123 setup */
 
-				// 	// isWav
-				// 	songBuffer[i].isWav = false;
+					// isWav
+					songBuffer[i].isWav = false;
 
-				// 	// Get Song Duration
-				// 	off_t samples = mpg123_length(mh);			// Get total samples
-				// 	int frameDuration = mpg123_spf(mh);			// Get # samples in 1 frame
-				// 	double seconds = mpg123_tpf(mh);			// Get # seconds in 1 frame
-				// 	int songDuration = ceil((samples / frameDuration) * seconds);
-				// 	songBuffer[i].duration = songDuration;
+					// Get Song Duration
+					off_t samples = mpg123_length(mh);			// Get total samples
+					int frameDuration = mpg123_spf(mh);			// Get # samples in 1 frame
+					double seconds = mpg123_tpf(mh);			// Get # seconds in 1 frame
+					int songDuration = ceil((samples / frameDuration) * seconds);
+					songBuffer[i].duration = songDuration;
 
-				// 	// Get Song Name + Artist
-				// 	char* title = NULL;
-				// 	char* artist = NULL;
-				// 	if(mpg123_meta_check(mh) & MPG123_ID3 && mpg123_id3(mh, &v1, &v2) == MPG123_OK){
-				// 		if(v2 != NULL){
-				// 			title = v2->title->p;
-				// 			songBuffer[i].songName = title;
+					// Get Song Name + Artist
+					char* title = NULL;
+					char* artist = NULL;
+					if(mpg123_meta_check(mh) & MPG123_ID3 && mpg123_id3(mh, &v1, &v2) == MPG123_OK){
+						if(v2 != NULL){
+							title = v2->title->p;
+							char* song_title = (char *) malloc(sizeof(char) * v2->title->fill);
+							strcpy(song_title, title);
 
-				// 			artist = v2->artist->p;
-				// 			songBuffer[i].artist = artist;
-				// 		}
-				// 		else if(v1 != NULL) {
-				// 			songBuffer[i].songName = v1->title;
-				// 			songBuffer[i].artist = v1->artist;
-				// 		}
-				// 	}
-				// 	mpg123_delete(mh);
-				// 	mpg123_exit();
-				// }
+							songBuffer[i].songName = song_title;
+
+							artist = v2->artist->p;
+							char* song_artist = (char *) malloc(sizeof(char) * v2->artist->fill);
+							strcpy(song_artist, artist);
+
+							songBuffer[i].artist = artist;
+						}
+						// else if(v1 != NULL) {
+						// 	songBuffer[i].songName = v1->title;
+						// 	songBuffer[i].artist = v1->artist;
+						// }
+					}
+					mpg123_delete(mh);
+					mpg123_exit();
+				}
 
 				/* Get WAV Metadata */
 				if (strcmp(&songBuffer[i].songDir[len-3], "wav") == 0){
