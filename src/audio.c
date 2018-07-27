@@ -195,9 +195,9 @@ void* Audio_playWAV(void* ptr)
 	fread(&sampleSize, 1, sizeof(uint16_t), file);
 
 	// DEBUGGING:
-	printf("Number of Channels = %d\n", numChannels);
-	printf("Sample rate = %d\n", sampleRate);
-	printf("Sample size = %d\n", sampleSize);
+	// printf("Number of Channels = %d\n", numChannels);
+	// printf("Sample rate = %d\n", sampleRate);
+	// printf("Sample size = %d\n", sampleSize);
 
 	pthread_mutex_lock(&pcmHandleMutex);
 	int err = snd_pcm_drop(handle);
@@ -341,7 +341,9 @@ void* Audio_playMP3(void *ptr)
 static void* audioThread(void *ptr) {
 
 	pthread_t threadId;
-	_Bool* pStop = Song_data_playSong(0, &threadId);
+	
+	_Bool* pStop = Song_data_playSong(17, &threadId);
+
 	while(true) {
 		//sleep
 		pthread_mutex_lock(&threadMutex);

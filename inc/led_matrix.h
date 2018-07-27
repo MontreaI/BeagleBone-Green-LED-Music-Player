@@ -15,7 +15,7 @@ void ledMatrix_splash_screen();
 
 int **ledMatrix_extract_string(char* string);
 
-void ledMatrix_music_timer(int seconds, int horizontalOffset, int colour);
+void ledMatrix_music_timer(int seconds, int colour, int horizontalOffset);
 
 void ledMatrix_music_track_display(char* track, int colour, int rowOffSet);
 

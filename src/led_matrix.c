@@ -166,7 +166,7 @@ static void *timerThread(void *arg)
 {
     while (!stop)
     {
-        ledMatrix_music_timer(Song_data_getTimer(), 0, 16764159);
+        ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
     }
     return NULL;
 }
@@ -432,6 +432,7 @@ void ledMatrix_init()
 {
     memset(screen, 0, sizeof(screen));
     ledMatrix_setupPins();
+    // ledMatrix_splash_screen();
 }
 
 /**
@@ -456,9 +457,9 @@ void ledMatrix_splash_screen()
     time_t start = time(NULL);
     time_t second = 3; // end loop after this time has elapsed
     memset(screen, 0, sizeof(screen));
-    for (int row = 0; row < 16; row += 2)
+    for (int row = 0; row < SCREEN_HEIGHT; row += 2)
     {
-        for (int col = 0; col < 32; col++)
+        for (int col = 0; col < SCREEN_WIDTH; col++)
         {
             if (col % 2 == 0)
             {
@@ -468,7 +469,6 @@ void ledMatrix_splash_screen()
             {
                 ledMatrix_setPixel(row + 1, col, 1);
             }
-
             //System.out.print(matrix[row][col] + " ");
         }
     }
@@ -498,6 +498,7 @@ void ledMatrix_splash_screen()
     memset(screen, 0, sizeof(screen));
     ledMatrix_refresh();
 }
+
 /**
  *  Takes a string and extracts each character from it, however the supported extractable characters at the moment is only:
  * 
@@ -692,7 +693,7 @@ void ledMatrix_music_track_display(char *track, int colour, int rowOffSet)
     }
 }
 
-void ledMatrix_music_timer(int duration, int horizontalOffset, int colour)
+void ledMatrix_music_timer(int duration, int colour, int horizontalOffset)
 {
     if (duration >= 600 || duration < 0)
         duration = 0;

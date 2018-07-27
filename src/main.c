@@ -11,15 +11,24 @@
 #define SAMPLE_RATE 44100
 #define NUM_CHANNELS 2
 
+#define DEFAULT_ROW_OFFSET 0
+#define DEFAULT_HORIZONTAL_OFFSET 19
+
 int main(void)
 {
-	//ledMatrix_init();
-    //ledMatrix_splash_screen();
-	// Configure Output Device
-	Song_data_init();
-	Joystick_init();
-	POT_init();
-	Audio_init(NUM_CHANNELS, SAMPLE_RATE);
+
+	/* INIT */
+	ledMatrix_init();								// Enables LED display
+	Song_data_init();								// Obtains list of songs
+	Joystick_init();								// Enables joystick inputs
+	POT_init();										// Enables potentiometer (volume)
+	Audio_init(NUM_CHANNELS, SAMPLE_RATE);			// Enables .mp3 & .wav audio
+
+	/* 
+		Go to audio.c to change which song plays first
+
+		To display ledMatrix must call ledMatrix_start_music_timer(true);
+	*/
 
 	// Get Song List
 	/*
@@ -29,9 +38,10 @@ int main(void)
 	// ledMatrix_song_list(song songList[], int nextSong, int colour); 
 
 	// Play Audio
-	//ledMatrix_music_track_display("EXO", 1114197, 0); // someone needs to pass me tiotle of song
-	//ledMatrix_music_timer(100, 19, 1114197);
-	//ledMatrix_start_music_timer(true);
+	// ledMatrix_music_track_display("EXO", 1114197, DEFAULT_ROW_OFFSET);
+	// ledMatrix_music_timer(100, 1114197, DEFAULT_HORIZONTAL_OFFSET);
+	ledMatrix_start_music_timer(true);
+
 	// Wait until stop
 	pthread_mutex_lock(&audioMutex);
 	pthread_cond_wait(&stopCond, &audioMutex);

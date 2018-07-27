@@ -8,14 +8,30 @@
 
 #include "audio.h"
 #include "stack.h"
+#include "led_matrix.h"
 
+/*****************************************************************************
+**                MACRO DEFINITIONS
+*****************************************************************************/
 #define SONG_DIR "wave-files/"		// Song directory
 
+/******************************************************************************
+ **              GLOBAL VARIABLES
+ ******************************************************************************/
+typedef struct {
+	char songDir[32];
+// 	char songName[32];
+// 	char artist[32];
+// 	int duration;
+} SongData;
+
+// Song buffer of SongData objects
 
 // SONG BUFFER
 static char** songBuffer;			// Song List
 static int songBufferSize = 0; 		// Stores num of songs
 static int currentSong = 0;			// Current Song playing
+static int dirLen = 0;				// Length of directory
 
 // TIMER
 static time_t startSongTime;		// Time which song started playing
@@ -23,18 +39,24 @@ static time_t startSongTime;		// Time which song started playing
 static _Bool repeat = false;		// Repeat
 static _Bool shuffle = false;		// Shuffle
 
-// FUNCTION PROTOTYPES
-static char** getFilenames(char *dirName, int* pFilenameCount);
+/*****************************************************************************
+**                FUNCTION PROTO
+*****************************************************************************/
+static void getMetaData(char *dirName, int* pFilenameCount);
+static void getSongName(char* songName, int index);
 
-// INIT
+/*****************************************************************************
+**                CODE STARTS HERE
+*****************************************************************************/
 void Song_data_init(){
 	printf("Song_data_init()\n");
 
 	// Obtain list of Songs
-	songBuffer = getFilenames(SONG_DIR, &songBufferSize);
+	getFilenames(SONG_DIR, &songBufferSize);
+
+	dirLen = strlen(SONG_DIR);		// Obtain directory length
 
 	// Sort songBuffer
-	// REVISIT: To use more efficient algorithm
 	for (size_t i = 0; i < songBufferSize - 1; i++){
 		int minimum = i;
 		for (size_t j = i + 1; j < songBufferSize; j++){
@@ -43,9 +65,9 @@ void Song_data_init(){
 			}
 		}
 
-		// Swap (this took me hours trying to do it the other way)
+		// Swap
 		char *temp = (char*)malloc(strlen(songBuffer[i]) + 1);
-		strcpy(temp,songBuffer[i]);
+		strcpy(temp, songBuffer[i]);
 		songBuffer[i] = songBuffer[minimum];
 		songBuffer[minimum] = temp;
 	}
@@ -103,7 +125,11 @@ _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 	int len = strlen(songBuffer[currentSong]);
 
 	printf("Playing: %s\n", songBuffer[currentSong]);
-	// Audio_setPause(true);
+
+	/* Updating the ledDisplay for Song Name */
+	char* songName = (char*) malloc(len - dirLen - 3);
+	getSongName(songName, currentSong);
+
 	Audio_threadInput* pInput = malloc(sizeof(Audio_threadInput));
 	pInput->filename = songBuffer[currentSong];
 	pInput->pStop = malloc(sizeof(_Bool));
@@ -116,7 +142,6 @@ _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
         	printf("ERROR cannot create a new audio playback thread");
 	}
 	return pInput->pStop;
-	// Audio_setPause(false);
 }
 
 // Replay Current Song
@@ -181,20 +206,19 @@ _Bool* Song_data_playNext(pthread_t* pThreadId){
 		}
 	}
 
-	printf("Playing Next %d: %s\n", currentSong, songBuffer[currentSong]);
+	// printf("Playing Next %d: %s\n", currentSong, songBuffer[currentSong]);
 	return Song_data_playSong(currentSong, pThreadId);
 }
 
 // Allocates and returns array containing names of files in dirName
 // Returns number of files in dirName
-static char** getFilenames(char *dirName, int* pFilenameCount){
+static void getMetaData(char *dirName, int* pFilenameCount){
 	DIR *pDir;
 	struct dirent *currEntity;
 	pDir = opendir(dirName);
 
-	char **dest = NULL;
+	// Get count of all files in directory
 	if (pDir) {
-		// count number of regular files
 		int count = 0;
 		currEntity = readdir(pDir);
 		while (currEntity) {
@@ -203,22 +227,27 @@ static char** getFilenames(char *dirName, int* pFilenameCount){
 			}
 			currEntity = readdir(pDir);
 		}
-		dest = malloc(count * sizeof(char*));
-		memset(dest, 0, count * sizeof(char*));
+		songBuffer = malloc(count * sizeof(char*));
+		memset(songBuffer, 0, count * sizeof(char*));
 		rewinddir(pDir);
-
-		// get filenames of regular files
+	}
+	// Get filenames within directory
+	// Returns format: "wave-files/a2002011001-e02.wav"
+	if (pDir) {
 		int i = 0;
 		currEntity = readdir(pDir);
 		while (currEntity) {
 			if (currEntity->d_type == DT_REG) {
-				dest[i] = (char*) malloc(strlen(SONG_DIR) + strlen(currEntity->d_name) + 1);
-				if (dest[i]) {
+				printf("hello\n");
+				songBuffer[i] = (char*) malloc(strlen(SONG_DIR) + strlen(currEntity->d_name) + 1);
+				printf("test\n");
+				if (songBuffer[i]) {
+					printf("world\n");
 					// Returns format: "wave-files/a2002011001-e02.wav"
 					char* songName = (char*) malloc(strlen(SONG_DIR) + strlen(currEntity->d_name) + 1);
 					strcpy(songName, SONG_DIR);
 					strcat(songName, currEntity->d_name);
-					strcpy(dest[i], songName);
+					strcpy(songBuffer[i], songName);
 					i++;		
 				}
 			}
@@ -229,5 +258,13 @@ static char** getFilenames(char *dirName, int* pFilenameCount){
 		// Set pFilenameCount to the number of wave files
 		*pFilenameCount = i;
 	}
-	return dest;
+}
+
+// Places song name into songName
+// Index is the index of the current song playing
+static void getSongName(char* songName, int index){
+	int len = strlen(songBuffer[currentSong]);
+	strncpy(songName, songBuffer[currentSong] + dirLen, len - dirLen - 4);
+	songName[len - dirLen - 4] = 0;
+	ledMatrix_music_track_display(songName, 1114197, 0);
 }
