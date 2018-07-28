@@ -514,6 +514,7 @@ int **ledMatrix_extract_string(char *string)
 {
     int length = titleLength = strlen(string);
     int **ptr = (int **)malloc(length * sizeof(int *));
+    memset(ptr, 0, length * sizeof(int *));
 
     for (int i = 0; i < length; i++)
     {
