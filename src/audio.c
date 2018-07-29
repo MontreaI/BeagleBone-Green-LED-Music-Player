@@ -350,7 +350,8 @@ static void* audioThread(void *ptr) {
 
 	pthread_t threadId;
 	
-	_Bool* pStop = Song_data_playSong(0, &threadId);
+	// _Bool* pStop = Song_data_playSong(0, &threadId);
+	_Bool* pStop = malloc(sizeof(_Bool));
 
 	while(true) {
 		//sleep
@@ -379,7 +380,11 @@ static void* audioThread(void *ptr) {
                     else{
                     	pStop = Song_data_replay(&threadId);
                     }
+                    break;
 				}
+				case JOYSTICK_IN:
+					printf("Thread Playing: %s\n", Song_data_getSongName(ledMatrix_getCurrentSong()));
+					pStop = Song_data_playSong(ledMatrix_getCurrentSong(), &threadId);
 			}
 		}
 		// Song ended naturally

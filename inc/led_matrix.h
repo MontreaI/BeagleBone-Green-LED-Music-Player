@@ -37,7 +37,17 @@ void ledMatrix_clean();
 
 void ledMatrix_clear();
 
-void ledMatrix_song_list(song songList[], int nextSong, int colour);
+// void ledMatrix_song_list(song songList[], int nextSong, int colour);
+void ledMatrix_display_song_list();
+void ledMatrix_display_next_song();
+void ledMatrix_display_prev_song();
+void ledMatrix_display_next_info();
+void ledMatrix_display_prev_info();
+void ledMatrix_display_back();
+int ledMatrix_display_info(int index);	// 0 = artist, 1 = album, 2 = year, Return -1 if no info
+void ledMatrix_clear_infoIndex();
+void ledMatrix_clear_menu();
+int ledMatrix_getCurrentSong();
 
 void ledMatrix_refresh(void);
 

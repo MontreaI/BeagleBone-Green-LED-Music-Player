@@ -24,23 +24,19 @@ int main(void)
 	POT_init();										// Enables potentiometer (volume)
 	Audio_init(NUM_CHANNELS, SAMPLE_RATE);			// Enables .mp3 & .wav audio
 
-	/* 
-		Go to audio.c to change which song plays first
-
-		To display ledMatrix must call ledMatrix_start_music_timer(true);
-	*/
-
-	// Get Song List
-	/*
-		The "song" structure is defined in the led_matrix.h, pass the array to it and loop it and the index of the nextSong which could be next or previous or any song in the list.
-		If you want to stay in the same song, just keep looping the method with the same nextSong int.
-	*/
 	// ledMatrix_song_list(song songList[], int nextSong, int colour); 
-
-	// Play Audio
 	// ledMatrix_music_track_display("EXO", 1114197, DEFAULT_ROW_OFFSET);
 	// ledMatrix_music_timer(100, 1114197, DEFAULT_HORIZONTAL_OFFSET);
-	ledMatrix_start_music_timer(true);
+
+	// Play Audio
+	// ledMatrix_start_music_timer(true);
+	ledMatrix_display_song_list();
+
+	while(true){
+		ledMatrix_refresh();
+	}
+
+	// ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
 
 	// Wait until stop
 	pthread_mutex_lock(&audioMutex);

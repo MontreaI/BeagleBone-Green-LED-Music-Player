@@ -28,17 +28,17 @@ struct SongData{
 	char* songDir;					// Directory to Song 
 	char* songName;				
 	char* artist;
+	char* album;
+	char* year;
+
 	int duration;
 	_Bool isWav;					// True = wav, False = mp3
 };
-
-// Song buffer of SongData objects
 
 // SONG BUFFER
 static struct SongData *songBuffer;
 static int songBufferSize = 0; 		// Stores num of songs
 static int currentSong = 0;			// Current Song playing
-static int dirLen = 0;				// Length of directory
 
 // TIMER
 static time_t startSongTime;		// Time which song started playing
@@ -61,8 +61,6 @@ void Song_data_init(){
 	// Obtain Song Data
 	getMetaData(SONG_DIR, &songBufferSize);
 
-	dirLen = strlen(SONG_DIR);		// Obtain directory length
-
 	// // Sort songBuffer
 	for (size_t i = 0; i < songBufferSize - 1; i++){
 		int minimum = i;
@@ -78,13 +76,16 @@ void Song_data_init(){
 		songBuffer[minimum] = temp;
 	}
 
-	printf("\nsongBufferSize: %d\n", songBufferSize);
-
 	// DEBUGGING:
-	// for(size_t i = 0; i < songBufferSize; i++)
-	// {
-	// 	printf("%s\n", songBuffer[i].songDir);
-	// }
+	printf("\nsongBufferSize: %d\n", songBufferSize);
+	for(size_t i = 0; i < songBufferSize; i++)
+	{
+		printf("%s\n", songBuffer[i].songName);
+		printf("%s\n", songBuffer[i].artist);
+		printf("%s\n", songBuffer[i].album);
+		printf("%s\n", songBuffer[i].year);
+		printf("\n");
+	}
 }
 
 // Starts timer of how long current song is playing
@@ -101,6 +102,26 @@ int Song_data_getTimer(){
 	int seconds = difftime(currentSongTime, startSongTime);
 
 	return seconds;
+}
+
+int Song_data_getSongBufferSize(){
+	return songBufferSize;
+}
+
+char* Song_data_getSongName(int index){
+	return songBuffer[index].songName;
+}
+
+char* Song_data_getArtist(int index){
+	return songBuffer[index].artist;
+}
+
+char* Song_data_getAlbum(int index){
+	return songBuffer[index].album;
+}
+
+char* Song_data_getYear(int index){
+	return songBuffer[index].year;
 }
 
 // Return bool of repeat
@@ -129,26 +150,26 @@ void Song_data_toggleShuffle(){
 _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 	currentSong = index;
 
-	int len = strlen(songBuffer[currentSong].songDir);
-
-	printf("Playing: %s\n", songBuffer[currentSong].songName);
+	/* LED Matrix */
 	ledMatrix_music_track_display(songBuffer[currentSong].songName, 1114197, DEFAULT_ROW_OFFSET);
 	ledMatrix_music_timer(songBuffer[currentSong].duration, 1114197, DEFAULT_HORIZONTAL_OFFSET);
 
-	/* Updating the ledDisplay for Song Name */
-	// char* songName = (char*) malloc(len - dirLen - 3);
-	// getSongName(songName, currentSong);
 	Audio_threadInput* pInput = malloc(sizeof(Audio_threadInput));
 	pInput->filename = songBuffer[currentSong].songDir;
 	pInput->pStop = malloc(sizeof(_Bool));
-	if (strcmp(&songBuffer[currentSong].songDir[len-3], "wav") == 0) {
+
+	// wav
+	if (songBuffer[currentSong].isWav == true) {
 		if (pthread_create(pThreadId, NULL, Audio_playWAV, pInput))
         	printf("ERROR cannot create a new audio playback thread");
 	}
-	if (strcmp(&songBuffer[currentSong].songDir[len-3], "mp3") == 0) {
+
+	// mp3
+	else if (songBuffer[currentSong].isWav == false) {
 		if (pthread_create(pThreadId, NULL, Audio_playMP3, pInput))
         	printf("ERROR cannot create a new audio playback thread");
 	}
+
 	return pInput->pStop;
 }
 
@@ -259,6 +280,11 @@ static void getMetaData(char *dirName, int* pFilenameCount){
 				// TODO: Refactor BELOW into functions to gather metadata for mp3 & wav
 				int len = strlen(songBuffer[i].songDir);
 
+				// init
+				songBuffer[i].artist = NULL;
+				songBuffer[i].album = NULL;
+				songBuffer[i].year = NULL;
+
 				/* Get MP3 Metadata */
 				if (strcmp(&songBuffer[i].songDir[len-3], "mp3") == 0) {
 
@@ -282,27 +308,38 @@ static void getMetaData(char *dirName, int* pFilenameCount){
 					int songDuration = ceil((samples / frameDuration) * seconds);
 					songBuffer[i].duration = songDuration;
 
-					// Get Song Name + Artist
 					char* title = NULL;
 					char* artist = NULL;
+					char* album = NULL;
+					char* year = NULL;
+
 					if(mpg123_meta_check(mh) & MPG123_ID3 && mpg123_id3(mh, &v1, &v2) == MPG123_OK){
 						if(v2 != NULL){
-							title = v2->title->p;
-							char* song_title = (char *) malloc(sizeof(char) * v2->title->fill);
-							strcpy(song_title, title);
 
+							// Song Name
+							title = v2->title->p;
+							char* song_title = (char *) malloc(sizeof(char) * v2->title->fill);	
+							strcpy(song_title, title);
 							songBuffer[i].songName = song_title;
 
+							// Artist
 							artist = v2->artist->p;
 							char* song_artist = (char *) malloc(sizeof(char) * v2->artist->fill);
 							strcpy(song_artist, artist);
+							songBuffer[i].artist = song_artist;
 
-							songBuffer[i].artist = artist;
+							// Album
+							album = v2->album->p;
+							char* song_album = (char *) malloc(sizeof(char) * v2->album->fill);
+							strcpy(song_album, album);
+							songBuffer[i].album = song_album;
+
+							// Year
+							year = v2->year->p;
+							char* song_year = (char *) malloc(sizeof(char) * v2->year->fill);
+							strcpy(song_year, year);
+							songBuffer[i].year = song_year;
 						}
-						// else if(v1 != NULL) {
-						// 	songBuffer[i].songName = v1->title;
-						// 	songBuffer[i].artist = v1->artist;
-						// }
 					}
 					mpg123_delete(mh);
 					mpg123_exit();
@@ -346,13 +383,15 @@ static void getMetaData(char *dirName, int* pFilenameCount){
 						songBuffer[i].duration = total;
 					}
 
-					// Get Artist
 					char* token = strtok(currEntity->d_name, "-");
-					songBuffer[i].artist = token;
+					if(token != NULL){
+						// Get Artist
+						songBuffer[i].artist = token;
 
-					// Get Song Name
-					token = strtok(NULL, "-");
-					songBuffer[i].songName = token + 1;
+						// Get Song Name
+						token = strtok(NULL, "-");
+						songBuffer[i].songName = token + 1;
+					}
 				}
 
 				i++;		

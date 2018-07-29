@@ -7,7 +7,8 @@
 
 typedef enum {
 	JOYSTICK_LEFT,
-	JOYSTICK_RIGHT
+	JOYSTICK_RIGHT,
+	JOYSTICK_IN
 } Joystick_Input;
 
 void Joystick_init();

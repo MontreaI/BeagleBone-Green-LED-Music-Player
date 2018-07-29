@@ -11,6 +11,9 @@
 #include <song_data.h>
 #include <pthread.h>
 
+#include "song_data.h"
+#include "joystick.h"
+
 /*** GLOBAL VARIABLE ***/
 /* GPIO PATH */
 #define GPIO_PATH "/sys/class/gpio/"
@@ -157,7 +160,12 @@ static int **ledTrack;
 static int **ledAlbum;
 static int **ledartist;
 static int **ledTrackTime;
+
+#define DEFAULT_MENU_COLOR 1
+#define DEFAULT_INFO_COLOR 16777215
 static int currentSong = 0;
+static int currentSongIndex = 0;
+static const int songIndexSize = 3; // Artist, Album, Year
 
 static _Bool stop = false;
 static pthread_t timerThreadId;
@@ -166,6 +174,7 @@ static void *timerThread(void *arg)
 {
     while (!stop)
     {
+        printf("Time: %d\n", Song_data_getTimer());
         ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
     }
     return NULL;
@@ -432,6 +441,7 @@ void ledMatrix_init()
 {
     memset(screen, 0, sizeof(screen));
     ledMatrix_setupPins();
+
     // ledMatrix_splash_screen();
 }
 
@@ -763,14 +773,11 @@ void ledMatrix_music_timer(int duration, int colour, int horizontalOffset)
         // start = time(NULL);
     // }
     if (horizontalOffset == 0) {
-            for (int rows = 7; rows < SCREEN_HEIGHT; rows++)
-    {
-        for (int cols = 0; cols < 13; cols++)
-        {
-
-            ledMatrix_setPixel(rows, cols, 0);
+        for (int rows = 7; rows < SCREEN_HEIGHT; rows++){
+            for (int cols = 0; cols < 13; cols++){
+                ledMatrix_setPixel(rows, cols, 0);
+            }
         }
-    }
     }
     else {
         ledMatrix_setPixel(9, 18, 5);
@@ -829,45 +836,126 @@ void ledMatrix_clear()
     ledMatrix_refresh();
 }
 
-void ledMatrix_song_list(song songList[], int nextSong, int colour) {
+void ledMatrix_display_song_list(){
+    currentSong = 0; 
+
     int offset = 4;
-    if(nextSong == currentSong) {
-        ledMatrix_music_details(songList[currentSong].track, colour, 4);
-        ledMatrix_refresh();
+    int colour = DEFAULT_MENU_COLOR;
+    ledMatrix_music_details(Song_data_getSongName(currentSong), colour, offset);
+}
+
+void ledMatrix_display_next_song(){
+    int songBufferSize = Song_data_getSongBufferSize();
+    if (currentSong >= (songBufferSize - 1))
+    {
+        currentSong = 0;
     }
     else{
-        if(nextSong < currentSong) {
-        for (int i = 0; i < 12; i++) {
-            ledMatrix_music_details(songList[currentSong].track, colour, offset);
-                    ledMatrix_refresh();
-        //struct timespec reqDelay = {DELAY_IN_SEC, 9000000};
-        //nanosleep(&reqDelay, (struct timespec *)NULL);
-        offset++;
-        }
-        offset = -7;
-        for (int i = 0; i < 12; i++) {
-            ledMatrix_music_details(songList[nextSong].track, colour, offset);
-                    ledMatrix_refresh();
-        offset++;
-        }
-        }
-        else{
-        for (int i = 0; i < 12; i++) {
-            ledMatrix_music_details(songList[currentSong].track, colour, offset);
-                    ledMatrix_refresh();
-        //struct timespec reqDelay = {DELAY_IN_SEC, 9000000};
-        //nanosleep(&reqDelay, (struct timespec *)NULL);
-        offset--;
-        }
-        offset = 15;
-        for (int i = 0; i < 12; i++) {
-            ledMatrix_music_details(songList[nextSong].track, colour, offset);
-                    ledMatrix_refresh();
-        offset--;
-        }
-        }
-        currentSong = nextSong;
+        currentSong++;
     }
 
+    int offset = 4;
+    int colour = DEFAULT_MENU_COLOR;
+    ledMatrix_music_details(Song_data_getSongName(currentSong), colour, offset);
+}
 
+void ledMatrix_display_prev_song(){
+    int songBufferSize = Song_data_getSongBufferSize();
+    if (currentSong <= 0)
+    {
+        currentSong = songBufferSize - 1;
+    }
+    else{
+        currentSong--;
+    }
+
+    int offset = 4;
+    int colour = DEFAULT_MENU_COLOR;
+    ledMatrix_music_details(Song_data_getSongName(currentSong), colour, offset);
+}
+
+int ledMatrix_display_info(int index){ 
+    int offset = 4;
+    int colour = DEFAULT_INFO_COLOR;
+
+    // Artist
+    if(index == 0){
+        char* artist = Song_data_getArtist(currentSong);
+
+        if (artist == NULL){
+            return -1;
+        }
+
+        ledMatrix_music_details(artist, colour, offset);
+    }
+    // Album
+    else if (index == 1){
+        char* album = Song_data_getAlbum(currentSong);
+
+        if (album == NULL){
+            return -1;
+        }
+
+        ledMatrix_music_details(album, colour, offset);
+    }
+    // Year
+    else if (index == 2){
+        char* year = Song_data_getYear(currentSong);
+
+        if (year == NULL){
+            return -1;
+        }
+
+        ledMatrix_music_details(year, colour, offset);
+    }
+
+    return 0;
+}
+
+
+void ledMatrix_display_next_info(){
+    if(currentSongIndex >= (songIndexSize - 1)){
+        currentSongIndex = 0;
+    }
+    else{
+        currentSongIndex++;
+    }
+
+    printf("Next Index: %d\n", currentSongIndex);
+
+    if (ledMatrix_display_info(currentSongIndex) == -1){
+        ledMatrix_display_next_info();
+    }
+}
+
+void ledMatrix_display_prev_info(){
+    if(currentSongIndex <= 0){
+        currentSongIndex = songIndexSize - 1;
+    }
+    else{
+        currentSongIndex--;
+    }
+    printf("Prev Index: %d\n", currentSongIndex);
+
+    if (ledMatrix_display_info(currentSongIndex) == -1){
+        ledMatrix_display_prev_info();
+    }
+}
+
+void ledMatrix_display_back(){
+    int offset = 4;
+    int colour = DEFAULT_MENU_COLOR;
+    ledMatrix_music_details(Song_data_getSongName(currentSong), colour, offset);
+}
+
+void ledMatrix_clear_infoIndex(){
+    currentSongIndex = 0;
+}
+
+void ledMatrix_clear_menu(){
+    currentSong = 0;
+}
+
+int ledMatrix_getCurrentSong(){
+    return currentSong;
 }
