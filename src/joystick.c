@@ -53,13 +53,13 @@ static void* Joystick_thread(void* arg){
     _Bool upHeldTriggered = false;
 
     while (!stopping) {
+        if (!Joystick_isPressed(UP)) {
+            holdingUp = false;
+            upHeldTriggered = false;
+        }
         if (!triggered) {
             triggered = true;
 
-            if (!Joystick_isPressed(UP)) {
-                holdingUp = false;
-                upHeldTriggered = false;
-            }
             // UP
             if (Joystick_isPressed(UP)) {
                 pthread_mutex_lock(&joystickMutex);
