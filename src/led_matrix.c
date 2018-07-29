@@ -466,6 +466,9 @@ void* ledMatrix_splash_screen(void* ptr)
 {
     _Bool* playing = (_Bool *)ptr;
 
+    time_t endwait;
+    time_t start = time(NULL);
+    time_t second = 3; // end loop after this time has elapsed
     memset(screen, 0, sizeof(screen));
     for (int row = 0; row < SCREEN_HEIGHT; row += 2)
     {
@@ -498,9 +501,12 @@ void* ledMatrix_splash_screen(void* ptr)
         increment += 6;
     }
 
-    while (*playing)
+    endwait = start + second;
+
+    while (*playing || (start < endwait))
     {
         ledMatrix_refresh();
+        start = time(NULL);
     }
     memset(screen, 0, sizeof(screen));
     ledMatrix_refresh();
