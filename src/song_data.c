@@ -84,8 +84,8 @@ void Song_data_init(){
 	{
 		printf("%s\n", songBuffer[i].songName);
 		printf("%s\n", songBuffer[i].artist);
-		printf("%s\n", songBuffer[i].album);
-		printf("%s\n", songBuffer[i].year);
+		// printf("%s\n", songBuffer[i].album);
+		// printf("%s\n", songBuffer[i].year);
 		printf("\n");
 	}
 }
@@ -411,11 +411,17 @@ static void getMetaData(char *dirName, int* pFilenameCount){
 					char* token = strtok(currEntity->d_name, "-");
 					if(token != NULL){
 						// Get Artist
-						songBuffer[i].artist = token;
+						char* song_artist = (char *) malloc(sizeof(char) * 32);
+						strcpy(song_artist, token);
+						songBuffer[i].artist = song_artist;
 
 						// Get Song Name
 						token = strtok(NULL, "-");
-						songBuffer[i].songName = token + 1;
+						char* song_name = (char *) malloc(sizeof(char) * 32);
+						strcpy(song_name, token + 1);
+						songBuffer[i].songName = song_name;
+
+						// songBuffer[i].songName = token + 1;
 					}
 				}
 
