@@ -19,7 +19,8 @@ int main(void)
 {
 
 	/* INIT */
-	ledMatrix_init();								// Enables LED display
+	pthread_t splashScreenThread;
+	_Bool* splashScreenPlaying = ledMatrix_init(&splashScreenThread);// Enables LED display + displays splash screen
 	Song_data_init();								// Obtains list of songs
 	Joystick_init();								// Enables joystick inputs
 	POT_init();										// Enables potentiometer (volume)
@@ -30,8 +31,13 @@ int main(void)
 	// ledMatrix_music_timer(100, 1114197, DEFAULT_HORIZONTAL_OFFSET);
 	// ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
 
-	// Play Audio
 	// ledMatrix_start_music_timer(true);
+
+	// Stop splash screen
+	*splashScreenPlaying = false;
+	pthread_join(splashScreenThread, NULL);
+	free(splashScreenPlaying);
+	// Show menu
 	ledMatrix_display_song_list();
 
 	while(true){

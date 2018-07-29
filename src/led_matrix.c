@@ -436,12 +436,14 @@ static void ledMatrix_setPixel(int x, int y, int colour)
  *  Initialize the LED Matrix GPIO pins and also set the entire screen array to have values of 0.
  */
 
-void ledMatrix_init()
+_Bool* ledMatrix_init(pthread_t* pSplashScreenThread)
 {
     memset(screen, 0, sizeof(screen));
     ledMatrix_setupPins();
 
-    ledMatrix_splash_screen();
+    _Bool* splashScreenPlaying = malloc(sizeof(_Bool));
+    pthread_create(pSplashScreenThread, NULL, ledMatrix_splash_screen, splashScreenPlaying);
+    return splashScreenPlaying;
 }
 
 /**
@@ -460,11 +462,10 @@ void ledMatrix_start_music_timer(_Bool start)
     }
 }
 
-void ledMatrix_splash_screen()
+void* ledMatrix_splash_screen(void* ptr)
 {
-    time_t endwait;
-    time_t start = time(NULL);
-    time_t second = 3; // end loop after this time has elapsed
+    _Bool* playing = (_Bool *)ptr;
+
     memset(screen, 0, sizeof(screen));
     for (int row = 0; row < SCREEN_HEIGHT; row += 2)
     {
@@ -497,15 +498,13 @@ void ledMatrix_splash_screen()
         increment += 6;
     }
 
-    endwait = start + second;
-
-    while (start < endwait)
+    while (*playing)
     {
         ledMatrix_refresh();
-        start = time(NULL);
     }
     memset(screen, 0, sizeof(screen));
     ledMatrix_refresh();
+    return NULL;
 }
 
 /**

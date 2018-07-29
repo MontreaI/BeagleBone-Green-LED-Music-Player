@@ -9,9 +9,9 @@ typedef struct{
 
 } song;
 
-void ledMatrix_init();
+_Bool* ledMatrix_init(pthread_t* pSplashScreenThread);
 
-void ledMatrix_splash_screen();
+void* ledMatrix_splash_screen(void* ptr);
 
 int **ledMatrix_extract_string(char* string);
 
