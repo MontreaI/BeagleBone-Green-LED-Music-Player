@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+
+#include <sys/time.h>
 #include <pthread.h>
 
 #include "joystick.h"
@@ -46,14 +48,41 @@ static void* Joystick_thread(void* arg){
     int count = 0, debounce = 5;        // debounce time == 500 ms (5 * 100 (poll speed))
     _Bool triggered = false;
 
+    struct timeval holdUpStartTime;
+    _Bool holdingUp = false;
+    _Bool upHeldTriggered = false;
+
     while (!stopping) {
         if (!triggered) {
             triggered = true;
+
+            if (!Joystick_isPressed(UP)) {
+                holdingUp = false;
+                upHeldTriggered = false;
+            }
             // UP
             if (Joystick_isPressed(UP)) {
                 pthread_mutex_lock(&joystickMutex);
                 {
                     printf("UP\n");
+                    // detect if holding up
+                    if (!upHeldTriggered) {
+                        if (!holdingUp) {
+                            holdingUp = true;
+                            gettimeofday(&holdUpStartTime, NULL);
+                        } else {
+                            struct timeval currentTime;
+                            const double TRIGGER_TIME = 1.5;
+                            gettimeofday(&currentTime, NULL);
+                            double timeElapsed = currentTime.tv_sec - holdUpStartTime.tv_sec + 
+                                                (currentTime.tv_usec - holdUpStartTime.tv_usec);
+                            if (timeElapsed > TRIGGER_TIME) {
+                                printf("Up held");
+                                upHeldTriggered = true;
+                            }
+                        }
+                    }
+
                     Song_data_toggleRepeat();
                     nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
                 }
