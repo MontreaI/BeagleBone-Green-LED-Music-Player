@@ -7,6 +7,7 @@
 #include "pot.h"
 #include "song_data.h"
 #include "led_matrix.h"
+#include <unistd.h>
 
 #define SAMPLE_RATE 44100
 #define NUM_CHANNELS 2
@@ -27,16 +28,22 @@ int main(void)
 	// ledMatrix_song_list(song songList[], int nextSong, int colour); 
 	// ledMatrix_music_track_display("EXO", 1114197, DEFAULT_ROW_OFFSET);
 	// ledMatrix_music_timer(100, 1114197, DEFAULT_HORIZONTAL_OFFSET);
+	// ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
 
 	// Play Audio
 	// ledMatrix_start_music_timer(true);
 	ledMatrix_display_song_list();
 
 	while(true){
-		ledMatrix_refresh();
+		if(isPlaying){
+			ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
+			ledMatrix_refresh();
+			ledMatrix_timer_clear();
+		}
+		else{
+			ledMatrix_refresh();
+		}
 	}
-
-	// ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
 
 	// Wait until stop
 	pthread_mutex_lock(&audioMutex);

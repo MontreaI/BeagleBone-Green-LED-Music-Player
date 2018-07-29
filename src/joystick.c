@@ -57,6 +57,7 @@ static void Joystick_exitInfo(){
 
 static void Joystick_enterMenu(){
     isMenu = true;
+    isPlaying = false;
     ledMatrix_display_song_list();
 }
 

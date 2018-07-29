@@ -174,7 +174,6 @@ static void *timerThread(void *arg)
 {
     while (!stop)
     {
-        printf("Time: %d\n", Song_data_getTimer());
         ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
     }
     return NULL;
@@ -764,7 +763,7 @@ void ledMatrix_music_timer(int duration, int colour, int horizontalOffset)
         }
     }
     
-    ledMatrix_refresh();
+    // ledMatrix_refresh();
     
     // endwait = start + second;
     // while (start < endwait)
@@ -773,11 +772,11 @@ void ledMatrix_music_timer(int duration, int colour, int horizontalOffset)
         // start = time(NULL);
     // }
     if (horizontalOffset == 0) {
-        for (int rows = 7; rows < SCREEN_HEIGHT; rows++){
-            for (int cols = 0; cols < 13; cols++){
-                ledMatrix_setPixel(rows, cols, 0);
-            }
-        }
+        // for (int rows = 7; rows < SCREEN_HEIGHT; rows++){
+        //     for (int cols = 0; cols < 13; cols++){
+        //         ledMatrix_setPixel(rows, cols, 0);
+        //     }
+        // }
     }
     else {
         ledMatrix_setPixel(9, 18, 5);
@@ -836,7 +835,19 @@ void ledMatrix_clear()
     ledMatrix_refresh();
 }
 
+void ledMatrix_timer_clear(){
+    for (int rows = 7; rows < SCREEN_HEIGHT; rows++){
+        for (int cols = 0; cols < 13; cols++){
+            ledMatrix_setPixel(rows, cols, 0);
+        }
+    }
+
+    ledMatrix_refresh();
+}
+
 void ledMatrix_display_song_list(){
+    ledMatrix_clear();
+    
     currentSong = 0; 
 
     int offset = 4;

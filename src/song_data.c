@@ -45,7 +45,7 @@ static time_t startSongTime;		// Time which song started playing
 
 static _Bool repeat = false;		// Repeat
 static _Bool shuffle = false;		// Shuffle
-
+_Bool isPlaying = false;
 /*****************************************************************************
 **                FUNCTION PROTO
 *****************************************************************************/
@@ -150,6 +150,7 @@ void Song_data_toggleShuffle(){
 _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 	currentSong = index;
 
+	isPlaying = true;
 	/* LED Matrix */
 	ledMatrix_music_track_display(songBuffer[currentSong].songName, 1114197, DEFAULT_ROW_OFFSET);
 	ledMatrix_music_timer(songBuffer[currentSong].duration, 1114197, DEFAULT_HORIZONTAL_OFFSET);

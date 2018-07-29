@@ -3,6 +3,8 @@
 #ifndef SONG_DATA_H
 #define SONG_DATA_H
 
+extern _Bool isPlaying;
+
 void Song_data_init();
 void Song_data_cleanup();
 

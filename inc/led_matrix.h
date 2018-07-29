@@ -49,6 +49,8 @@ void ledMatrix_clear_infoIndex();
 void ledMatrix_clear_menu();
 int ledMatrix_getCurrentSong();
 
+void ledMatrix_timer_clear();
+
 void ledMatrix_refresh(void);
 
 void ledMatrix_start_music_timer(_Bool start);
