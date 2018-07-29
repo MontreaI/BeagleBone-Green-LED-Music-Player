@@ -144,6 +144,8 @@ static void* Joystick_thread(void* arg){
                     else{
                         printf("Play Next\n");
                         Audio_setJoystickInput(JOYSTICK_RIGHT);
+                        Audio_setPause(false);
+                        Song_data_unpauseTimer();
                     }
                     
                     nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
@@ -161,7 +163,7 @@ static void* Joystick_thread(void* arg){
                             printf("Exit Info\n");
                             Joystick_exitInfo();
                         }
-                        else{
+                        else if (isPlaying){
                             printf("Exit Menu\n");
                             Joystick_exitMenu();
                         }
@@ -169,6 +171,8 @@ static void* Joystick_thread(void* arg){
                     else{
                         printf("Prev Song\n");
                         Audio_setJoystickInput(JOYSTICK_LEFT);
+                        Audio_setPause(false);
+                        Song_data_unpauseTimer();
                     }
 
                     nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
