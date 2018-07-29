@@ -52,6 +52,7 @@ static void Joystick_enterInfo(){
 static void Joystick_exitInfo(){
     isInfo = false;
     ledMatrix_clear_infoIndex();
+    ledMatrix_clear();
     ledMatrix_display_back();
 }
 
@@ -64,6 +65,7 @@ static void Joystick_enterMenu(){
 static void Joystick_exitMenu(){
     isMenu = false;
     // ledMatrix_clear_menu();
+    ledMatrix_clear();
 }
 
 static void* Joystick_thread(void* arg){
@@ -193,8 +195,10 @@ static void* Joystick_thread(void* arg){
                         printf("Play / Pause\n");
                        	if (Audio_getPause()) {
                        		Audio_setPause(false);
+                            Song_data_unpauseTimer();
                        	} else {
                        		Audio_setPause(true);
+                            Song_data_pauseTimer();     
                        	}
                     }
                 }

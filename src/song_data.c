@@ -42,6 +42,8 @@ static int currentSong = 0;			// Current Song playing
 
 // TIMER
 static time_t startSongTime;		// Time which song started playing
+static time_t startPauseTime;
+static _Bool paused = false;
 
 static _Bool repeat = false;		// Repeat
 static _Bool shuffle = false;		// Shuffle
@@ -98,10 +100,26 @@ int Song_data_getTimer(){
 	time_t currentSongTime;
 
 	time(&currentSongTime);
-
-	int seconds = difftime(currentSongTime, startSongTime);
-
+	int seconds;
+	if (!paused) {
+		seconds = difftime(currentSongTime, startSongTime);
+	} else {
+		seconds = difftime(startPauseTime, startSongTime);
+	}
 	return seconds;
+}
+
+void Song_data_pauseTimer() {
+	time(&startPauseTime);
+	paused = true;
+}
+
+void Song_data_unpauseTimer() {
+	time_t unpauseTime;
+	time(&unpauseTime);
+	int timePaused = difftime(unpauseTime, startPauseTime);
+	startSongTime += timePaused;
+	paused = false;
 }
 
 int Song_data_getSongBufferSize(){
@@ -149,10 +167,7 @@ void Song_data_toggleShuffle(){
 // Returns pointer to stop the current audio playback thread
 _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 	currentSong = index;
-
-	isPlaying = true;
-	/* LED Matrix */
-	ledMatrix_music_track_display(songBuffer[currentSong].songName, 1114197, DEFAULT_ROW_OFFSET);
+	ledMatrix_clear();
 	ledMatrix_music_timer(songBuffer[currentSong].duration, 1114197, DEFAULT_HORIZONTAL_OFFSET);
 
 	Audio_threadInput* pInput = malloc(sizeof(Audio_threadInput));
@@ -170,6 +185,10 @@ _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 		if (pthread_create(pThreadId, NULL, Audio_playMP3, pInput))
         	printf("ERROR cannot create a new audio playback thread");
 	}
+
+	isPlaying = true;
+	/* LED Matrix */
+	ledMatrix_music_track_display(songBuffer[currentSong].songName, 1114197, DEFAULT_ROW_OFFSET);
 
 	return pInput->pStop;
 }
@@ -293,7 +312,7 @@ static void getMetaData(char *dirName, int* pFilenameCount){
 				  	mpg123_init();
 				    mpg123_handle *mh = mpg123_new(NULL, NULL);
 				    mpg123_open(mh, songBuffer[i].songDir);
-					mpg123_scan(mh);
+					// mpg123_scan(mh);
 
 					mpg123_id3v1 *v1;
 					mpg123_id3v2 *v2;

@@ -286,14 +286,17 @@ void* Audio_playMP3(void *ptr)
 	size_t frame = numChannels * 16 / BITS_PER_BYTE;
 	//unsigned char *buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
 
+	const int MODIFIER = 1000;
+	size_t buffer_size = 2 * sampleRate * frame / MODIFIER;
+	//unsigned char *buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
 
-	unsigned long playbackBufferSize = 0; // size in frames
+
+	unsigned long playbackBufferSize = 0;
 	unsigned long unusedBufferSize = 0;
 	snd_pcm_get_params(handle, &unusedBufferSize, &playbackBufferSize);
 	// ..allocate playback buffer:
+	unsigned char *buffer = malloc(playbackBufferSize * frame);
 
-	size_t buffer_size = playbackBufferSize * frame; // size in bytes
-	unsigned char *buffer = malloc(buffer_size);
 
 	pthread_mutex_lock(&pcmHandleMutex);
 	int pcm_err = snd_pcm_drop(handle);

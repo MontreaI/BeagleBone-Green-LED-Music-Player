@@ -441,7 +441,7 @@ void ledMatrix_init()
     memset(screen, 0, sizeof(screen));
     ledMatrix_setupPins();
 
-    // ledMatrix_splash_screen();
+    ledMatrix_splash_screen();
 }
 
 /**
@@ -562,7 +562,7 @@ int **ledMatrix_extract_string(char *string)
 
 int ledMatrix_music_details(char *track, int colour, int rowOffSet)
 {
-    memset(screen, 0, sizeof(screen));
+    ledMatrix_clear_top();
     ledTrack = ledMatrix_extract_string(track);
 
     int increment = 0;
@@ -571,7 +571,7 @@ int ledMatrix_music_details(char *track, int colour, int rowOffSet)
     int temp = 0;
     int counter = strlen(track);
 
-    if (strlen(track) * 3 > SCREEN_WIDTH)
+    if ((strlen(track) * 3 + strlen(track) - 1) > SCREEN_WIDTH)
     {
         for (int j = 0; j < strlen(track); j++)
         {
@@ -687,8 +687,8 @@ static void ledMatrix_slideTrack(int **ledT, int track, int colour, int rowOffSe
             increment++;
             increment2 += 4;
         }
-        ledMatrix_refresh();
-        struct timespec reqDelay = {DELAY_IN_SEC, 9000000};
+        // ledMatrix_refresh();
+        struct timespec reqDelay = {DELAY_IN_SEC, 30000000};
         nanosleep(&reqDelay, (struct timespec *)NULL);
     }
     return;
@@ -841,8 +841,6 @@ void ledMatrix_timer_clear(){
             ledMatrix_setPixel(rows, cols, 0);
         }
     }
-
-    ledMatrix_refresh();
 }
 
 void ledMatrix_display_song_list(){
@@ -886,6 +884,7 @@ void ledMatrix_display_prev_song(){
 }
 
 int ledMatrix_display_info(int index){ 
+    ledMatrix_clear();
     int offset = 4;
     int colour = DEFAULT_INFO_COLOR;
 

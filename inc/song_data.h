@@ -15,6 +15,8 @@ _Bool* Song_data_replay(pthread_t* pThreadId);				// Replays current song
 
 void Song_data_startTimer();				// Start current song timer 
 int Song_data_getTimer();					// Return current playing time in seconds
+void Song_data_pauseTimer();
+void Song_data_unpauseTimer();
 
 _Bool Song_data_getRepeat();				// Return true if repeat is on
 _Bool Song_data_getShuffle();				// Return true if shuffle is on
