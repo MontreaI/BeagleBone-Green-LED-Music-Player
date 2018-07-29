@@ -5,6 +5,8 @@
 #ifndef JOYSTICK_H
 #define JOYSTICK_H
 
+extern _Bool isMenu;
+
 typedef enum {
 	JOYSTICK_LEFT,
 	JOYSTICK_RIGHT,

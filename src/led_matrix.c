@@ -854,6 +854,7 @@ void ledMatrix_display_song_list(){
 }
 
 void ledMatrix_display_next_song(){
+    ledMatrix_clear();
     int songBufferSize = Song_data_getSongBufferSize();
     if (currentSong >= (songBufferSize - 1))
     {
@@ -869,6 +870,7 @@ void ledMatrix_display_next_song(){
 }
 
 void ledMatrix_display_prev_song(){
+    ledMatrix_clear();
     int songBufferSize = Song_data_getSongBufferSize();
     if (currentSong <= 0)
     {

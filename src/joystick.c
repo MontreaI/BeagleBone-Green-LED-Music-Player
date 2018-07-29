@@ -19,7 +19,7 @@
 static pthread_t joystickThreadId;
 static pthread_mutex_t joystickMutex = PTHREAD_MUTEX_INITIALIZER;
 static _Bool stopping = false;
-static _Bool isMenu = true;                                            // Menu mode
+_Bool isMenu = true;                                            // Menu mode
 static _Bool isInfo = false;                                            // Info Mode                                        
 
 // Private functions forward declarations
@@ -58,14 +58,14 @@ static void Joystick_exitInfo(){
 
 static void Joystick_enterMenu(){
     isMenu = true;
-    isPlaying = false;
     ledMatrix_display_song_list();
 }
 
 static void Joystick_exitMenu(){
-    isMenu = false;
+    isMenu = false;   
     // ledMatrix_clear_menu();
     ledMatrix_clear();
+    Song_data_exitMenuDisplay();
 }
 
 static void* Joystick_thread(void* arg){

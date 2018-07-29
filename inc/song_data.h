@@ -7,6 +7,7 @@ extern _Bool isPlaying;
 
 void Song_data_init();
 void Song_data_cleanup();
+void Song_data_exitMenuDisplay();
 
 _Bool* Song_data_playSong(int index, pthread_t* pThreadId);		// Play song of index
 _Bool* Song_data_playPrev(pthread_t* pThreadId);				// Plays previous song

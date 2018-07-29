@@ -193,6 +193,11 @@ _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 	return pInput->pStop;
 }
 
+void Song_data_exitMenuDisplay() {
+	ledMatrix_music_timer(songBuffer[currentSong].duration, 1114197, DEFAULT_HORIZONTAL_OFFSET);
+	ledMatrix_music_track_display(songBuffer[currentSong].songName, 1114197, DEFAULT_ROW_OFFSET); 
+}
+
 // Replay Current Song
 _Bool* Song_data_replay(pthread_t* pThreadId){
 	printf("Replaying: %s\n", songBuffer[currentSong].songDir);

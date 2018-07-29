@@ -35,7 +35,7 @@ int main(void)
 	ledMatrix_display_song_list();
 
 	while(true){
-		if(isPlaying){
+		if(isPlaying && !isMenu){
 			ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
 			ledMatrix_refresh();
 			ledMatrix_timer_clear();
