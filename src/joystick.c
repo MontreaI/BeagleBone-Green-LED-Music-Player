@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+
+#include <sys/time.h>
 #include <pthread.h>
 
 #include "joystick.h"
@@ -72,16 +74,27 @@ static void* Joystick_thread(void* arg){
     int count = 0, debounce = 5;        // debounce time == 500 ms (5 * 100 (poll speed))
     _Bool triggered = false;
 
+    struct timeval holdUpStartTime;
+    _Bool holdingUp = false;
+
     while (!stopping) {
+        if (!Joystick_isPressed(UP)) {
+            if (holdingUp && !isMenu) {
+                printf("holding up\n");
+                Song_data_toggleRepeat();
+            }
+            holdingUp = false;
+        }
         if (!triggered) {
             triggered = true;
+
             // UP
             if (Joystick_isPressed(UP)) {
                 pthread_mutex_lock(&joystickMutex);
                 {
                     // printf("UP\n");
 
-                    if(isMenu){
+                    if(isMenu && !holdingUp){
                         if(isInfo){
                             printf("Prev Info\n");
                             ledMatrix_display_prev_info();
@@ -92,11 +105,27 @@ static void* Joystick_thread(void* arg){
                         }
                     }
                     else{
+                        // detect if holding up
+                        if (!holdingUp) {
+                            holdingUp = true;
+                            gettimeofday(&holdUpStartTime, NULL);
+                        } else {
+                            struct timeval currentTime;
+                            const double TRIGGER_TIME = 1.5;
+                            gettimeofday(&currentTime, NULL);
+                            double timeElapsed = currentTime.tv_sec - holdUpStartTime.tv_sec + 
+                                                (currentTime.tv_usec - holdUpStartTime.tv_usec);
+                            if (timeElapsed > TRIGGER_TIME) {
+                                printf("Display Song List: %d\n", ledMatrix_getCurrentSong());  // Always prints zero
+                                Joystick_enterMenu();
+                                printf("Up held");
+                            }
+                        }
                         // Song_data_toggleRepeat();
-                        printf("Display Song List: %d\n", ledMatrix_getCurrentSong());  // Always prints zero
-                        Joystick_enterMenu();
+                        
                     }
 
+    
                     nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
                 }
                 pthread_mutex_unlock(&joystickMutex);

@@ -1,6 +1,14 @@
 #ifndef LED_MATRIX_H
 #define LED_MATRIX_H
 
+#define RED 1
+#define GREEN 2
+#define YELLOW 3
+#define BLUE 4
+#define PURPLE 5
+#define LIGHT_BLUE 6
+#define WHITE 7
+
 typedef struct{
     char *track;
     char *album;
@@ -12,6 +20,8 @@ typedef struct{
 _Bool* ledMatrix_init(pthread_t* pSplashScreenThread);
 
 void* ledMatrix_splash_screen(void* ptr);
+
+void ledMatrix_fill_screen(int start_row, int end_row, int start_col, int end_col, int colour);
 
 int **ledMatrix_extract_string(char* string);
 

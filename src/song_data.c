@@ -48,6 +48,7 @@ static _Bool paused = false;
 static _Bool repeat = false;		// Repeat
 static _Bool shuffle = false;		// Shuffle
 _Bool isPlaying = false;
+_Bool exitMenu = false;
 /*****************************************************************************
 **                FUNCTION PROTO
 *****************************************************************************/
@@ -79,15 +80,15 @@ void Song_data_init(){
 	}
 
 	// DEBUGGING:
-	printf("\nsongBufferSize: %d\n", songBufferSize);
-	for(size_t i = 0; i < songBufferSize; i++)
-	{
-		printf("%s\n", songBuffer[i].songName);
-		printf("%s\n", songBuffer[i].artist);
-		// printf("%s\n", songBuffer[i].album);
-		// printf("%s\n", songBuffer[i].year);
-		printf("\n");
-	}
+	// printf("\nsongBufferSize: %d\n", songBufferSize);
+	// for(size_t i = 0; i < songBufferSize; i++)
+	// {
+	// 	printf("%s\n", songBuffer[i].songName);
+	// 	printf("%s\n", songBuffer[i].artist);
+	// 	// printf("%s\n", songBuffer[i].album);
+	// 	// printf("%s\n", songBuffer[i].year);
+	// 	printf("\n");
+	// }
 }
 
 // Starts timer of how long current song is playing
@@ -168,7 +169,7 @@ void Song_data_toggleShuffle(){
 _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 	currentSong = index;
 	ledMatrix_clear();
-	ledMatrix_music_timer(songBuffer[currentSong].duration, 1114197, DEFAULT_HORIZONTAL_OFFSET);
+	ledMatrix_music_timer(songBuffer[currentSong].duration, WHITE, DEFAULT_HORIZONTAL_OFFSET);
 
 	Audio_threadInput* pInput = malloc(sizeof(Audio_threadInput));
 	pInput->filename = songBuffer[currentSong].songDir;
@@ -188,14 +189,14 @@ _Bool* Song_data_playSong(int index, pthread_t* pThreadId){
 
 	isPlaying = true;
 	/* LED Matrix */
-	ledMatrix_music_track_display(songBuffer[currentSong].songName, 1114197, DEFAULT_ROW_OFFSET);
+	ledMatrix_music_track_display(songBuffer[currentSong].songName, WHITE, DEFAULT_ROW_OFFSET);
 
 	return pInput->pStop;
 }
 
 void Song_data_exitMenuDisplay() {
-	ledMatrix_music_timer(songBuffer[currentSong].duration, 1114197, DEFAULT_HORIZONTAL_OFFSET);
-	ledMatrix_music_track_display(songBuffer[currentSong].songName, 1114197, DEFAULT_ROW_OFFSET); 
+	ledMatrix_music_timer(songBuffer[currentSong].duration, WHITE, DEFAULT_HORIZONTAL_OFFSET);
+	ledMatrix_music_track_display(songBuffer[currentSong].songName, WHITE, DEFAULT_ROW_OFFSET); 
 }
 
 // Replay Current Song

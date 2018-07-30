@@ -37,14 +37,15 @@ int main(void)
 	*splashScreenPlaying = false;
 	pthread_join(splashScreenThread, NULL);
 	free(splashScreenPlaying);
+
 	// Show menu
 	ledMatrix_display_song_list();
 
 	while(true){
 		if(isPlaying && !isMenu){
+			ledMatrix_timer_clear();
 			ledMatrix_music_timer(Song_data_getTimer(), 16764159, 0);
 			ledMatrix_refresh();
-			ledMatrix_timer_clear();
 		}
 		else{
 			ledMatrix_refresh();

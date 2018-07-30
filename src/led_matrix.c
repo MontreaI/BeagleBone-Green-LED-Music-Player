@@ -161,8 +161,10 @@ static int **ledAlbum;
 static int **ledartist;
 static int **ledTrackTime;
 
-#define DEFAULT_MENU_COLOR 1
-#define DEFAULT_INFO_COLOR 16777215
+#define BACKGROUND_COLOUR RED
+#define MENU_COLOR WHITE
+#define INFO_COLOR LIGHT_BLUE
+
 static int currentSong = 0;
 static int currentSongIndex = 0;
 static const int songIndexSize = 3; // Artist, Album, Year
@@ -338,7 +340,7 @@ static void ledMatrix_setRow(int rowNum)
  *      int colour: colour to be set
  */
 static void ledMatrix_setColourTop(int colour)
-{
+{;
     int arr[3] = {0, 0, 0};
     ledMatrix_bitsFromInt(arr, colour);
 
@@ -462,6 +464,32 @@ void ledMatrix_start_music_timer(_Bool start)
     }
 }
 
+void ledMatrix_fill_screen(int start_row, int end_row, int start_col, int end_col, int colour) {
+    // for (int row = 0; row < SCREEN_HEIGHT; row ++)
+    // {
+    //     for (int col = 0; col < SCREEN_WIDTH; col++)
+    //     {
+    //     ledMatrix_setPixel(row, col, colour);
+    //     //System.out.print(matrix[row][col] + " ");
+    //     }
+    // }
+    for (int row = start_row; row < end_row; row += 2)
+    {
+        for (int col = start_col; col < end_col; col++)
+        {
+            if (col % 2 == 0)
+            {
+                ledMatrix_setPixel(row, col, colour);
+            }
+            else
+            {
+                ledMatrix_setPixel(row + 1, col, colour);
+            }
+            //System.out.print(matrix[row][col] + " ");
+        }
+    }
+}
+
 void* ledMatrix_splash_screen(void* ptr)
 {
     _Bool* playing = (_Bool *)ptr;
@@ -494,7 +522,7 @@ void* ledMatrix_splash_screen(void* ptr)
             {
                 if (SFU[k][i * 5 + j] == 1)
                 {
-                    ledMatrix_setPixel(i + 8, j + increment, 16777215);
+                    ledMatrix_setPixel(i + 8, j + increment, WHITE);
                 }
             }
         }
@@ -693,7 +721,7 @@ static void ledMatrix_slideTrack(int **ledT, int track, int colour, int rowOffSe
             increment2 += 4;
         }
         // ledMatrix_refresh();
-        struct timespec reqDelay = {DELAY_IN_SEC, 30000000};
+        struct timespec reqDelay = {DELAY_IN_SEC, 40000000};
         nanosleep(&reqDelay, (struct timespec *)NULL);
     }
     return;
@@ -797,7 +825,7 @@ void ledMatrix_music_timer(int duration, int colour, int horizontalOffset)
 
 void ledMatrix_clear_bottom()
 {
-    for (int rows = 7; rows < SCREEN_HEIGHT; rows++)
+    for (int rows = 8; rows < SCREEN_HEIGHT; rows++)
     {
         for (int cols = 0; cols < SCREEN_WIDTH; cols++)
         {
@@ -805,6 +833,9 @@ void ledMatrix_clear_bottom()
             ledMatrix_setPixel(rows, cols, 0);
         }
     }
+    int background_colour = BACKGROUND_COLOUR;
+    if (!isMenu) background_colour = 0;
+    ledMatrix_fill_screen(8, SCREEN_HEIGHT, 0, SCREEN_WIDTH, background_colour);
 }
 
 void ledMatrix_clear_top()
@@ -817,6 +848,9 @@ void ledMatrix_clear_top()
             ledMatrix_setPixel(rows, cols, 0);
         }
     }
+    int background_colour = BACKGROUND_COLOUR;
+    if (!isMenu) background_colour = 0;
+    ledMatrix_fill_screen(0, 7, 0, SCREEN_WIDTH, background_colour);
 }
 /**
  *  Use this method whenever you switch switch songs, because you want to clear the existing data to make room for new data or else you'll have memory leaks...
@@ -837,13 +871,33 @@ void ledMatrix_clean()
 void ledMatrix_clear()
 {
     memset(screen, 0, sizeof(screen));
+    int background_colour = BACKGROUND_COLOUR;
+    if (!isMenu) background_colour = 0;
+    ledMatrix_fill_screen(0, SCREEN_HEIGHT, 0, SCREEN_WIDTH, background_colour);
     ledMatrix_refresh();
 }
 
 void ledMatrix_timer_clear(){
-    for (int rows = 7; rows < SCREEN_HEIGHT; rows++){
+    for (int rows = 8; rows < SCREEN_HEIGHT; rows++){
         for (int cols = 0; cols < 13; cols++){
             ledMatrix_setPixel(rows, cols, 0);
+        }
+    }
+    int background_colour = RED;
+    if (!isMenu) background_colour = 0;
+    for (int row = 8; row < SCREEN_HEIGHT; row += 2)
+    {
+        for (int col = 0; col < 13; col++)
+        {
+            if (col % 2 == 0)
+            {
+                ledMatrix_setPixel(row, col, background_colour);
+            }
+            else
+            {
+                ledMatrix_setPixel(row + 1, col, background_colour);
+            }
+            //System.out.print(matrix[row][col] + " ");
         }
     }
 }
@@ -854,7 +908,7 @@ void ledMatrix_display_song_list(){
     currentSong = 0; 
 
     int offset = 4;
-    int colour = DEFAULT_MENU_COLOR;
+    int colour = MENU_COLOR;
     ledMatrix_music_details(Song_data_getSongName(currentSong), colour, offset);
 }
 
@@ -870,7 +924,7 @@ void ledMatrix_display_next_song(){
     }
 
     int offset = 4;
-    int colour = DEFAULT_MENU_COLOR;
+    int colour = MENU_COLOR;
     ledMatrix_music_details(Song_data_getSongName(currentSong), colour, offset);
 }
 
@@ -886,14 +940,14 @@ void ledMatrix_display_prev_song(){
     }
 
     int offset = 4;
-    int colour = DEFAULT_MENU_COLOR;
+    int colour = MENU_COLOR;
     ledMatrix_music_details(Song_data_getSongName(currentSong), colour, offset);
 }
 
 int ledMatrix_display_info(int index){ 
     ledMatrix_clear();
     int offset = 4;
-    int colour = DEFAULT_INFO_COLOR;
+    int colour = INFO_COLOR;
 
     // Artist
     if(index == 0){
@@ -961,7 +1015,7 @@ void ledMatrix_display_prev_info(){
 
 void ledMatrix_display_back(){
     int offset = 4;
-    int colour = DEFAULT_MENU_COLOR;
+    int colour = MENU_COLOR;
     ledMatrix_music_details(Song_data_getSongName(currentSong), colour, offset);
 }
 
