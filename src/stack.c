@@ -1,8 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 
+/******************************************************************************
+ **              INTERNAL MACRO DEFINITIONS
+ ******************************************************************************/
 #define MAX_STACK_SIZE 1024
 
+/******************************************************************************
+ **              INTERNAL STRUCT
+ ******************************************************************************/
 typedef struct shuffle {
     int stack[MAX_STACK_SIZE];
     int top;
@@ -10,6 +16,9 @@ typedef struct shuffle {
 
 shuffle_t shuffleHistory;
 
+/******************************************************************************
+ **              INTERNAL FUNCTION PROTOTYPES
+ ******************************************************************************/
 void Stack_push(int val){
 	if (shuffleHistory.top == (MAX_STACK_SIZE - 1)){
 		printf("STACK FULL\n");

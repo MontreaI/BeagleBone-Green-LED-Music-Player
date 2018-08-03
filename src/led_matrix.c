@@ -13,6 +13,7 @@
 
 #include "song_data.h"
 #include "joystick.h"
+#include "menu.h"
 
 /*** GLOBAL VARIABLE ***/
 /* GPIO PATH */
@@ -834,7 +835,7 @@ void ledMatrix_clear_bottom()
         }
     }
     int background_colour = BACKGROUND_COLOUR;
-    if (!isMenu) background_colour = 0;
+    if (!Menu_isMenu()) background_colour = 0;
     ledMatrix_fill_screen(8, SCREEN_HEIGHT, 0, SCREEN_WIDTH, background_colour);
 }
 
@@ -849,7 +850,7 @@ void ledMatrix_clear_top()
         }
     }
     int background_colour = BACKGROUND_COLOUR;
-    if (!isMenu) background_colour = 0;
+    if (!Menu_isMenu()) background_colour = 0;
     ledMatrix_fill_screen(0, 7, 0, SCREEN_WIDTH, background_colour);
 }
 /**
@@ -872,7 +873,7 @@ void ledMatrix_clear()
 {
     memset(screen, 0, sizeof(screen));
     int background_colour = BACKGROUND_COLOUR;
-    if (!isMenu) background_colour = 0;
+    if (!Menu_isMenu()) background_colour = 0;
     ledMatrix_fill_screen(0, SCREEN_HEIGHT, 0, SCREEN_WIDTH, background_colour);
     ledMatrix_refresh();
 }
@@ -884,7 +885,7 @@ void ledMatrix_timer_clear(){
         }
     }
     int background_colour = RED;
-    if (!isMenu) background_colour = 0;
+    if (!Menu_isMenu()) background_colour = 0;
     for (int row = 8; row < SCREEN_HEIGHT; row += 2)
     {
         for (int col = 0; col < 13; col++)
