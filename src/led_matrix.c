@@ -217,7 +217,7 @@ static void exportAndOut(int pinNum)
  */
 static void ledMatrix_setupPins(void)
 {
-    // !Upper led
+    // Upper led
     exportAndOut(RED1_PIN);
     fileDesc_red1 = open("/sys/class/gpio/gpio8/value", O_WRONLY, S_IWRITE);
     exportAndOut(GREEN1_PIN);
@@ -464,15 +464,12 @@ void ledMatrix_start_music_timer(_Bool start)
     }
 }
 
+/**
+ * Method is used to set specific sections of the LED screen, by specificing which row and columns to begin and end. 
+ */
+
 void ledMatrix_fill_screen(int start_row, int end_row, int start_col, int end_col, int colour) {
-    // for (int row = 0; row < SCREEN_HEIGHT; row ++)
-    // {
-    //     for (int col = 0; col < SCREEN_WIDTH; col++)
-    //     {
-    //     ledMatrix_setPixel(row, col, colour);
-    //     //System.out.print(matrix[row][col] + " ");
-    //     }
-    // }
+
     for (int row = start_row; row < end_row; row += 2)
     {
         for (int col = start_col; col < end_col; col++)
@@ -485,10 +482,14 @@ void ledMatrix_fill_screen(int start_row, int end_row, int start_col, int end_co
             {
                 ledMatrix_setPixel(row + 1, col, colour);
             }
-            //System.out.print(matrix[row][col] + " ");
         }
     }
 }
+
+/**
+ * Besides being obviously used as a splash screen it is also used to show something at the 
+ * beginning while the system is still loading the metadata of all the songs in the song directory.
+ */
 
 void* ledMatrix_splash_screen(void* ptr)
 {
@@ -510,7 +511,6 @@ void* ledMatrix_splash_screen(void* ptr)
             {
                 ledMatrix_setPixel(row + 1, col, 1);
             }
-            //System.out.print(matrix[row][col] + " ");
         }
     }
     int increment = 15;
@@ -546,8 +546,12 @@ void* ledMatrix_splash_screen(void* ptr)
  * 
  *      1. Entire alphabet (upper and lower case) 
  *      2. Numbers
- *      3. Tabs
+ *      3. Colons
+ *      4. Dashes
+ *      5. Spaces
  * 
+ *  Anything not listed above will be skipped and in place will be something similar to a space.
+ *  
  *  @params:
  *      char *string: Track, artist, album, song duration, etc..                
  */
@@ -593,6 +597,11 @@ int **ledMatrix_extract_string(char *string)
     return ptr;
 }
 
+/**
+ *  Grabs the track name and displays to be seen on the LED matrix and if the name is too long 
+ *  it returns a none-zero value indicating that we should call the ledMatrix_slideTrack() method. 
+ */
+
 int ledMatrix_music_details(char *track, int colour, int rowOffSet)
 {
     ledMatrix_clear_top();
@@ -611,7 +620,6 @@ int ledMatrix_music_details(char *track, int colour, int rowOffSet)
             if (ledTrack[increment] == NULL)
             {
                 increment2 -=2;
-                //increment += 1;
                 isrealloc = 1;
                 counter --;
             }
@@ -674,12 +682,16 @@ int ledMatrix_music_details(char *track, int colour, int rowOffSet)
     return 0;
 }
 
+/**
+ *  Method used to slide the track across the display from left to right it wraps around the display in an animated fashion.
+ */
+
 static void ledMatrix_slideTrack(int **ledT, int track, int colour, int rowOffSet)
 {
     int breakout = -1;
-    for (int fuck = 0; fuck < titleLength; fuck++)
+    for (int i = 0; i < titleLength; i++)
     {
-        if (&ledT[fuck][0] == NULL)
+        if (&ledT[i][0] == NULL)
         {
             breakout += 1;
         }
@@ -720,13 +732,16 @@ static void ledMatrix_slideTrack(int **ledT, int track, int colour, int rowOffSe
             increment++;
             increment2 += 4;
         }
-        // ledMatrix_refresh();
+
         struct timespec reqDelay = {DELAY_IN_SEC, 40000000};
         nanosleep(&reqDelay, (struct timespec *)NULL);
     }
     return;
 }
 
+/**
+ * A method to encapsulate the necessary methods to display the track name and also slide the track name if it's too long.
+ */
 void ledMatrix_music_track_display(char *track, int colour, int rowOffSet)
 {
     int isOverflow = ledMatrix_music_details(track, colour, rowOffSet);
@@ -736,14 +751,14 @@ void ledMatrix_music_track_display(char *track, int colour, int rowOffSet)
     }
 }
 
+/**
+ * Handles the update of the total time and remaining time of a song on the display when playing a song. 
+ */
+
 void ledMatrix_music_timer(int duration, int colour, int horizontalOffset)
 {
     if (duration >= 600 || duration < 0)
         duration = 0;
-
-    // time_t endwait;
-    // time_t start = time(NULL);
-    // time_t second = 1; // end loop after this time has elapsed
 
     char bufferMinutes[128];
     char bufferSeconds[128];
@@ -796,14 +811,6 @@ void ledMatrix_music_timer(int duration, int colour, int horizontalOffset)
         }
     }
     
-    // ledMatrix_refresh();
-    
-    // endwait = start + second;
-    // while (start < endwait)
-    // {
-        // ledMatrix_refresh();
-        // start = time(NULL);
-    // }
     if (horizontalOffset == 0) {
         // for (int rows = 7; rows < SCREEN_HEIGHT; rows++){
         //     for (int cols = 0; cols < 13; cols++){
@@ -823,6 +830,10 @@ void ledMatrix_music_timer(int duration, int colour, int horizontalOffset)
     ledTrackTime = NULL;
 }
 
+/**
+ * Method used to exclusively clear only the bottom of the LED display from row 8 to 15
+ */
+
 void ledMatrix_clear_bottom()
 {
     for (int rows = 8; rows < SCREEN_HEIGHT; rows++)
@@ -837,6 +848,10 @@ void ledMatrix_clear_bottom()
     if (!isMenu) background_colour = 0;
     ledMatrix_fill_screen(8, SCREEN_HEIGHT, 0, SCREEN_WIDTH, background_colour);
 }
+
+/**
+ * Method used to exclusively clear only the top of the LED display from row 0 to 6
+ */
 
 void ledMatrix_clear_top()
 {
@@ -853,7 +868,7 @@ void ledMatrix_clear_top()
     ledMatrix_fill_screen(0, 7, 0, SCREEN_WIDTH, background_colour);
 }
 /**
- *  Use this method whenever you switch switch songs, because you want to clear the existing data to make room for new data or else you'll have memory leaks...
+ *  Thread cleanup and when program ends.
  */
 void ledMatrix_clean()
 {
@@ -867,6 +882,10 @@ void ledMatrix_clean()
     }
     ledTrack = ledAlbum = ledartist = NULL;
 }
+
+/**
+ * Used to clear display and set its background to a specific color value dpeneding on which page you are on when using the LED display.
+ */
 
 void ledMatrix_clear()
 {
@@ -897,11 +916,13 @@ void ledMatrix_timer_clear(){
             {
                 ledMatrix_setPixel(row + 1, col, background_colour);
             }
-            //System.out.print(matrix[row][col] + " ");
         }
     }
 }
 
+/**
+ * Display the songs in a directory.
+ */
 void ledMatrix_display_song_list(){
     ledMatrix_clear();
     
