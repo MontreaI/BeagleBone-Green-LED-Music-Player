@@ -1,5 +1,6 @@
-## Instructions
+## Installing mpg123
 
+Prerequisites: complete guides up to the Audio Guide
 
 Install mpg123 on target by running 
 
@@ -13,10 +14,11 @@ Copy libmpg123.so.0 on target to directory asound\_lib\_BBB, then rename it to l
 Troubleshooting: If libmpg123.so.0 is not there, run the following to find the file path.
 
 	# ldconfig -p | grep libmpg123.so.0 
+	
 
-On host, navigate to project root directory, run 
+## Building the project
 
-	$ make
+On host, navigate to the project root directory and run make
 
 Troubleshooting: If you get this error: 
 
@@ -26,6 +28,12 @@ Then run:
 
 	$ sudo apt-get install libmpg123-dev
 
+## Running the project
 
-Sources Used:
-https://www.mpg123.de/api/id3dump_8c_source.shtml
+Connect the LED matrix as described in our BBG LED matrix guide. Mount the ~/cmpt433/public folder and run the executable file: 
+
+	# mnt/remote/myApps/cmpt433_proj/wave_player
+
+The folder for storing music files is located at: 
+	
+	# mnt/remote/myApps/cmpt433_proj/wave-files
