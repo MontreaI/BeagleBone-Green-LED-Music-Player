@@ -6,13 +6,19 @@
 #include "pot.h"
 #include "audio.h"
 
-#define A2D_VIRTUAL_CAPE "/sys/devices/platform/bone_capemgr/slots"
-#define A2D_FILE_VOLTAGE0 "/sys/bus/iio/devices/iio:device0/in_voltage0_raw"
-#define BB_ADC "BB-ADC"
-#define DATA_PTS_SIZE 10
-#define SLEEP_SEC 1
-#define POLL_SPEED_NS 100000000     // 100ms
+/******************************************************************************
+ **              INTERNAL MACRO DEFINITIONS
+ ******************************************************************************/
+#define A2D_VIRTUAL_CAPE    "/sys/devices/platform/bone_capemgr/slots"
+#define A2D_FILE_VOLTAGE0   "/sys/bus/iio/devices/iio:device0/in_voltage0_raw"
+#define BB_ADC              "BB-ADC"
+#define DATA_PTS_SIZE       (10)
+#define SLEEP_SEC           (1)
+#define POLL_SPEED_NS       (100000000)     // 100ms
 
+/******************************************************************************
+ **              INTERNAL VARIABLES
+ ******************************************************************************/
 static pthread_mutex_t potMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t potThreadId;
 static _Bool stopping = false;
@@ -28,11 +34,16 @@ const int DATA_PTS[DATA_PTS_SIZE][2] = {
     {4000, 90},
     {4100, 100}};
 
-// Private functions forward declarations
+/******************************************************************************
+ **              INTERNAL FUNCTION PROTOTYPES
+ ******************************************************************************/
 static void* POT_thread(void* arg);
 static int POT_getCurrVolt();
 static void POT_loadCape();
 
+/******************************************************************************
+ **              FUNCTION DEFINITIONS
+ ******************************************************************************/
 void POT_init()
 {
     printf("POT_init()\n");
@@ -46,17 +57,6 @@ void POT_cleanup()
 {
     stopping = true;
     pthread_join(potThreadId, NULL);
-}
-
-static void* POT_thread(void* arg)
-{
-    while (!stopping) {
-        pthread_mutex_lock(&potMutex);
-        Audio_setVolume(POT_getVolume());
-        pthread_mutex_unlock(&potMutex);
-        nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
-    }
-    return NULL;
 }
 
 int POT_getVolume()
@@ -82,6 +82,17 @@ int POT_getVolume()
     }
 
     return (int)((double)(s - a) / (b - a) * (n - m) + m);
+}
+
+static void* POT_thread(void* arg)
+{
+    while (!stopping) {
+        pthread_mutex_lock(&potMutex);
+        Audio_setVolume(POT_getVolume());
+        pthread_mutex_unlock(&potMutex);
+        nanosleep((const struct timespec[]){{0, POLL_SPEED_NS}}, NULL);
+    }
+    return NULL;
 }
 
 static void POT_loadCape()

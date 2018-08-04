@@ -17,25 +17,27 @@
 #include "led_matrix.h"
 #include "song_data.h"
 
+/******************************************************************************
+ **              INTERNAL MACRO DEFINITIONS
+ ******************************************************************************/
+#define DEFAULT_VOLUME 		(80)
+#define BITS_PER_BYTE 		(8)
+#define SECONDS_FOR_REPLAY 	(2)
+
+/******************************************************************************
+ **              INTERNAL VARIABLES
+ ******************************************************************************/
 static snd_pcm_t *handle;
-
-#define DEFAULT_VOLUME 80
-#define BITS_PER_BYTE 8
-
-#define SECONDS_FOR_REPLAY 2
 
 // Static function
 static void* audioThread(void *ptr);
 
-// Playback threadin
+// Playback threading
 static _Bool stop = false;
 static _Bool paused = false;
-pthread_mutex_t audioMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t threadMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t pauseCond = PTHREAD_COND_INITIALIZER;
-pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t audioMainCond = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t pcmHandleMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t audioThreadId;
 
 static int volume = 0;
@@ -43,6 +45,16 @@ static int volume = 0;
 static int joystickInputFlag = false;
 static Joystick_Input joystickInput;
 
+/******************************************************************************
+ **              GLOBAL VARIABLES
+ ******************************************************************************/
+pthread_mutex_t audioMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t stopCond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t pcmHandleMutex = PTHREAD_MUTEX_INITIALIZER;
+
+/******************************************************************************
+ **              FUNCTION DEFINITIONS
+ ******************************************************************************/
 void Audio_init(unsigned int numChannels, unsigned int sampleRate)
 {
 	printf("Audio_init()\n");

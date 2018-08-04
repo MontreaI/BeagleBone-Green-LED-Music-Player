@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-
 #include <sys/time.h>
 #include <pthread.h>
 
@@ -9,26 +8,36 @@
 #include "audio.h"
 #include "led_matrix.h"
 #include "song_data.h"
+#include "menu.h"
 
+/******************************************************************************
+ **              INTERNAL MACRO DEFINITIONS
+ ******************************************************************************/
 #define JOYSTICK_EXPORT "/sys/class/gpio/export"
-#define POLL_SPEED_NS 100000000     // 100ms
-#define UP 26
-#define RIGHT 47
-#define DOWN 46
-#define LEFT 65
-#define IN 27
+#define POLL_SPEED_NS   (100000000)     // 100ms
+#define UP              (26)
+#define RIGHT           (47)
+#define DOWN            (46)
+#define LEFT            (65)
+#define IN              (27)
 
+/******************************************************************************
+ **              INTERNAL VARIABLES
+ ******************************************************************************/
 static pthread_t joystickThreadId;
 static pthread_mutex_t joystickMutex = PTHREAD_MUTEX_INITIALIZER;
-static _Bool stopping = false;
-_Bool isMenu = true;                                            // Menu mode
-static _Bool isInfo = false;                                            // Info Mode                                        
+static _Bool stopping = false;                                  
 
-// Private functions forward declarations
+/******************************************************************************
+ **              INTERNAL FUNCTION PROTOTYPES
+ ******************************************************************************/
 static void* Joystick_thread(void* arg);
 static void Joystick_export(char *filePath, int value);
 static _Bool Joystick_isPressed(int direction);
 
+/******************************************************************************
+ **              FUNCTION DEFINITIONS
+ ******************************************************************************/
 void Joystick_init(){
     printf("Joystick_init()\n");
     Joystick_export(JOYSTICK_EXPORT, UP);
@@ -46,30 +55,6 @@ void Joystick_cleanup(){
     pthread_join(joystickThreadId, NULL);
 }
 
-static void Joystick_enterInfo(){
-    isInfo = true;
-    ledMatrix_display_info(0);
-}
-
-static void Joystick_exitInfo(){
-    isInfo = false;
-    ledMatrix_clear_infoIndex();
-    ledMatrix_clear();
-    ledMatrix_display_back();
-}
-
-static void Joystick_enterMenu(){
-    isMenu = true;
-    ledMatrix_display_song_list();
-}
-
-static void Joystick_exitMenu(){
-    isMenu = false;   
-    // ledMatrix_clear_menu();
-    ledMatrix_clear();
-    Song_data_exitMenuDisplay();
-}
-
 static void* Joystick_thread(void* arg){
     int count = 0, debounce = 5;        // debounce time == 500 ms (5 * 100 (poll speed))
     _Bool triggered = false;
@@ -79,7 +64,7 @@ static void* Joystick_thread(void* arg){
 
     while (!stopping) {
         if (!Joystick_isPressed(UP)) {
-            if (holdingUp && !isMenu) {
+            if (holdingUp && !Menu_isMenu()) {
                 printf("holding up\n");
                 Song_data_toggleRepeat();
             }
@@ -94,8 +79,8 @@ static void* Joystick_thread(void* arg){
                 {
                     // printf("UP\n");
 
-                    if(isMenu && !holdingUp){
-                        if(isInfo){
+                    if(Menu_isMenu() && !holdingUp){
+                        if(Menu_isInfo()){
                             printf("Prev Info\n");
                             ledMatrix_display_prev_info();
                         }
@@ -117,12 +102,10 @@ static void* Joystick_thread(void* arg){
                                                 (currentTime.tv_usec - holdUpStartTime.tv_usec);
                             if (timeElapsed > TRIGGER_TIME) {
                                 printf("Display Song List: %d\n", ledMatrix_getCurrentSong());  // Always prints zero
-                                Joystick_enterMenu();
+                                Menu_enterMenu();
                                 printf("Up held");
                             }
                         }
-                        // Song_data_toggleRepeat();
-                        
                     }
 
     
@@ -136,8 +119,8 @@ static void* Joystick_thread(void* arg){
                 {
                     // printf("DOWN\n");
 
-                    if(isMenu){
-                        if(isInfo){
+                    if(Menu_isMenu()){
+                        if(Menu_isInfo()){
                             printf("Next Info\n");
                             ledMatrix_display_next_info();
                         }
@@ -161,13 +144,13 @@ static void* Joystick_thread(void* arg){
                 {
                     // printf("RIGHT\n");
 
-                    if(isMenu){
-                        if(isInfo){
+                    if(Menu_isMenu()){
+                        if(Menu_isInfo()){
 
                         }
                         else{
                             printf("Enter Info\n");
-                            Joystick_enterInfo();
+                            Menu_enterInfo();
                         }
                     }
                     else{
@@ -187,14 +170,14 @@ static void* Joystick_thread(void* arg){
                 {
                     // printf("LEFT\n");
 
-                    if(isMenu){
-                        if(isInfo){
+                    if(Menu_isMenu()){
+                        if(Menu_isInfo()){
                             printf("Exit Info\n");
-                            Joystick_exitInfo();
+                            Menu_exitInfo();
                         }
-                        else if (isPlaying){
+                        else if (Song_isPlaying()){
                             printf("Exit Menu\n");
-                            Joystick_exitMenu();
+                            Menu_exitMenu();
                         }
                     }
                     else{
@@ -214,14 +197,14 @@ static void* Joystick_thread(void* arg){
                 {
                     // printf("IN\n");
 
-                    if(isMenu){
-                        if(isInfo){
+                    if(Menu_isMenu()){
+                        if(Menu_isInfo()){
 
                         }
                         else{
                             printf("Playing %s\n", Song_data_getSongName(ledMatrix_getCurrentSong()));
                             Audio_setJoystickInput(JOYSTICK_IN);
-                            Joystick_exitMenu();
+                            Menu_exitMenu();
                         }
                     }
                     else{

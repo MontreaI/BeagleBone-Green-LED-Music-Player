@@ -1,11 +1,22 @@
 // Methods relating to joystick controls
 
-// Pressing IN will play/pause the music
+//  Song Menu Library Inputs:
+// 	UP		= Prev
+// 	DOWN	= Next
+// 	LEFT 	= Back
+// 	RIGHT 	= Next
+// 	IN 		= Select
+
+//  Current Track Display Inputs:
+// 	UP		= Toggle Repeat
+// 	DOWN	= Toggle Shuffle
+// 	LEFT 	= Play Prev / Replay
+// 	RIGHT 	= Play Next
+// 	IN 		= Play / Plause
+
 
 #ifndef JOYSTICK_H
 #define JOYSTICK_H
-
-extern _Bool isMenu;
 
 typedef enum {
 	JOYSTICK_LEFT,
