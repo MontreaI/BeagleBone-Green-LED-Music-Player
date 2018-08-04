@@ -18,7 +18,9 @@ Troubleshooting: If libmpg123.so.0 is not there, run the following to find the f
 
 ## Building the project
 
-On host, navigate to the project root directory and run make
+On the host, navigate to the project root directory. The wave-files folder is for storing music files. 
+
+Ensure that at least one wav or mp3 file is inside wave-files and run make.
 
 Troubleshooting: If you get this error: 
 
@@ -34,6 +36,4 @@ Connect the LED matrix as described in our BBG LED matrix guide. Mount the ~/cmp
 
 	# mnt/remote/myApps/cmpt433_proj/wave_player
 
-The folder for storing music files is located at: 
-	
-	# mnt/remote/myApps/cmpt433_proj/wave-files
+
