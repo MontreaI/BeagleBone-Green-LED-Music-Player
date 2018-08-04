@@ -8,6 +8,6 @@
 void POT_init();
 void POT_cleanup();
 
-int POT_getVolume();
+int POT_getVolume(); // Returns a volume in [10,100] based on potentiometer voltage
 
 #endif
