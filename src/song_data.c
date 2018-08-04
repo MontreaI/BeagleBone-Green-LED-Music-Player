@@ -16,10 +16,10 @@
 /*****************************************************************************
 **                MACRO DEFINITIONS
 *****************************************************************************/
-#define SONG_DIR "wave-files/"		// Song directory
+#define SONG_DIR 					"wave-files/"	// Song directory
 
-#define DEFAULT_ROW_OFFSET 0
-#define DEFAULT_HORIZONTAL_OFFSET 19
+#define DEFAULT_ROW_OFFSET 			(0)
+#define DEFAULT_HORIZONTAL_OFFSET 	(19)
 
 /******************************************************************************
  **              GLOBAL VARIABLES
@@ -47,8 +47,8 @@ static _Bool paused = false;
 
 static _Bool repeat = false;		// Repeat
 static _Bool shuffle = false;		// Shuffle
-_Bool isPlaying = false;
-_Bool exitMenu = false;
+static _Bool isPlaying = false;
+
 /*****************************************************************************
 **                FUNCTION PROTO
 *****************************************************************************/
@@ -263,6 +263,10 @@ _Bool* Song_data_playNext(pthread_t* pThreadId){
 
 	// printf("Playing Next %d: %s\n", currentSong, songBuffer[currentSong].songDir);
 	return Song_data_playSong(currentSong, pThreadId);
+}
+
+_Bool Song_isPlaying(){
+	return isPlaying;
 }
 
 // Allocates and returns array containing names of files in dirName
