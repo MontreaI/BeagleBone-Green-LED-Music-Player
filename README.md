@@ -37,3 +37,6 @@ Connect the LED matrix as described in our BBG LED matrix guide. Mount the ~/cmp
 	# mnt/remote/myApps/cmpt433_proj/wave_player
 
 
+## Setting up the Adafruit 16x32 LED Matrix 
+
+Please refer to the PDF file *Adafruit 16x32 LED Matrix Guide.pdf* on this repository to learn how to fully attach the LED matrix to the beaglebone.
